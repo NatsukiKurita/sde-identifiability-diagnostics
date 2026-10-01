@@ -1,6 +1,6 @@
 # モデルの追加方法
 
-モデルはモジュール化されているため、kinetics、social interaction、wall avoidance、neighbor algorithm を別個に追加できます。シミュレーションでは `SimRunner.jl` 内で `Physics/` 以下の各ディレクトリにある `.jl` コードが自動的に `include` されるので、ユーザーは `.jl` を適切なディレクトリに置くだけで Julia 側の登録は完了します。
+モデルはモジュール化されているため、kinetics、social interaction、neighbor algorithm を別個に追加できます。シミュレーションは開放領域（open field）で行い、壁との相互作用はありません。`SimRunner.jl` 内で `Physics/` 以下の各ディレクトリにある `.jl` コードが自動的に `include` されるので、ユーザーは `.jl` を適切なディレクトリに置くだけで Julia 側の登録は完了します。近傍は Voronoi 隣接に固定されており、TOML では選びません。Social が読む `neighbor_buffers.weights` のため、近傍バッファ自体は残しています。
 
 なお、Python 側のパラメータ設定（`src/types.py`、`src/constants/master_constants.py`、
 推定器、`src/constants/estimation.py`の最適化境界）は別途追加する必要があります。
@@ -15,7 +15,6 @@
 |---------------|--------------|
 | Kinetics      | `jl_src/Physics/Kinetics/` |
 | Social        | `jl_src/Physics/Social/` |
-| WallAvoidance | `jl_src/Physics/WallAvoidance/` |
 | Neighbor      | `jl_src/Physics/Neighbor/` |
 
 `SimRunner.jl` は各ディレクトリ内の `.jl` をファイル名の辞書順で読み込みます。
@@ -29,14 +28,13 @@
 |----------|------------|-------------------------|----------------|
 | Kinetics | `Overdamped.jl` | `Kinetics_Overdamped` | `"Kinetics_Overdamped"` |
 | Social | `Soc_KR2021.jl` | `Soc_KR2021` | `"Soc_KR2021"` |
-| WallAvoidance | `WA_Elastic.jl` | `WA_Elastic` | `"WA_Elastic"` |
-| Neighbor | `Delaunay.jl` | `Neighbor_Delaunay` | `"Neighbor_Delaunay"` |
+| Neighbor | `Voronoi.jl` | `Neighbor_Voronoi` | 固定（TOML に書かない） |
 
 命名規則のまとめ:
 
 - **Kinetics**: モジュール名・構造体名に `Kinetics_` プレフィックスを付ける
-- **Social / WallAvoidance**: ファイル名（拡張子除く）と同名
-- **Neighbor**: モジュール名・構造体名に `Neighbor_` プレフィックスを付ける
+- **Social**: ファイル名（拡張子除く）と同名
+- **Neighbor**: モジュール名・構造体名に `Neighbor_` プレフィックスを付ける。実行時は `Neighbor_Voronoi` のみを使う
 
 ### パラメータ構造体と TOML
 
@@ -56,12 +54,11 @@ d_eq = 0.1
 ### シミュレーションループでの役割分担
 
 1. `update_neighbors!` — 近傍バッファ更新
-2. `reset_buffers!` — social / wall バッファをリセット
+2. `reset_buffers!` — social バッファをリセット
 3. `calculate_social_interactions!` — `social_factor` を書き込み
-4. `calculate_wall_avoidance!` — `wall_factor` を書き込み
-5. `update_state_by_kinetics!` — 状態（位置・速度・向きなど）を更新
+4. `update_state_by_kinetics!` — 状態（位置・速度・向きなど）を更新
 
-Social / WallAvoidance は **kinetics が読めるスカラー因子**（`social_factor`, `wall_factor`）をバッファに書き、Kinetics がそれを使って状態を更新する、という分担です。
+Social は **kinetics が読めるスカラー因子** `social_factor` をバッファに書き、Kinetics がそれを使って状態を更新します。
 
 ---
 
@@ -84,13 +81,13 @@ Social / WallAvoidance は **kinetics が読めるスカラー因子**（`social
    | 関数 | 役割 |
    |------|------|
    | `allocate_states(kinetics, num_agents)` | 状態の初期配列を返す |
-   | `update_state_by_kinetics!(kinetics, states, social_buffers, wall_buffers, dt, rng)` | 1 ステップ更新 |
+   | `update_state_by_kinetics!(kinetics, states, social_buffers, dt, rng)` | 1 ステップ更新 |
    | `copy_state!(dest, src)` | 状態のコピー |
 
 ### 注意
 
-- `social_buffers.social_factor[i]` と `wall_buffers.wall_factor[i]` を読み取り、モデルに応じて向き・角速度などに反映する
-- バッファ型は `AbstractBuffer` として受け取り、`.social_factor` / `.wall_factor` フィールド名に依存する（インターフェース上の暗黙の契約）
+- `social_buffers.social_factor[i]` を読み取り、モデルに応じて向き・角速度などに反映する
+- バッファ型は `AbstractBuffer` として受け取り、`.social_factor` フィールド名に依存する（インターフェース上の暗黙の契約）
 - `import ..Types: AbstractKinetics, AbstractState, AbstractBuffer, allocate_states, update_state_by_kinetics!, copy_state!`
 
 ---
@@ -124,38 +121,11 @@ Social / WallAvoidance は **kinetics が読めるスカラー因子**（`social
 
 ---
 
-## Wall avoidance
-
-**参照実装**: `Physics/WallAvoidance/WA_Elastic.jl`, `WA_TK2020.jl`
-
-### 定義するもの
-
-1. **パラメータ構造体** `<名前>{T} <: AbstractWallAvoidance`
-
-2. **バッファ構造体** `Buffer_<名前>{T} <: AbstractBuffer`
-   - **必須フィールド**: `wall_factor::Vector{T}`
-   - 壁との距離・法線など、モデル固有の補助フィールドは自由
-
-3. **必須関数**
-
-   | 関数 | 役割 |
-   |------|------|
-   | `allocate_wall_buffers(wall_avoidance, num_agents, T)` | バッファ生成 |
-   | `reset_buffers!(buffers)` | 毎ステップ開始時にリセット |
-   | `calculate_wall_avoidance!(kinetics, wa, states, wall_buffers, wall, safe_eps)` | 壁回避を計算し `wall_factor` に書き込む |
-
-### 注意
-
-- `wall` は `RectWall`, `CircleWall`, `NoWall` のいずれか（`Geometry.jl`）。壁形状ごとに `_update_wall_collision_info!` などを dispatch する
-- `NoWall` のときは `wall_factor` を 0 のままにする
-- Social と同様、`wall_factor` は kinetics が読む射影済みスカラー因子として書く
-- 他の WallAvoidance モジュールを `import` せず、必要なバッファ・補助関数は自モジュール内に定義する
-
----
-
 ## Neighbor algorithm
 
-**参照実装**: `Physics/Neighbor/Delaunay.jl`
+近傍は Voronoi 隣接に固定です。`SimRunner` が `Neighbor_Voronoi` を生成し、`run_simulation` に渡します。隣接グラフの計算には `DelaunayTriangulation` を使います（ドロネー辺が Voronoi 隣接に一致します）。
+
+**参照実装**: `Physics/Neighbor/Voronoi.jl`
 
 ### 定義するもの
 
@@ -175,7 +145,7 @@ Social / WallAvoidance は **kinetics が読めるスカラー因子**（`social
 ### 注意
 
 - Social モジュールは `neighbor_buffers.weights` の存在を前提とする
-- Delaunay 実装では行ごとに正規化（和が 1）しているが、0/1 のみでも可。Social 側の実装と整合させる
+- Voronoi 実装では行ごとに正規化（和が 1）しているが、0/1 のみでも可。Social 側の実装と整合させる
 - `reset_buffers!` は Neighbor には不要（`update_neighbors!` 内で上書き）
 
 ---
@@ -189,10 +159,6 @@ Social / WallAvoidance は **kinetics が読めるスカラー因子**（`social
 ---
 
 ## その他の実装上の注意
-
-### Klamser モデルとソフト境界
-
-現在のソフト境界の実装では、`RectWall` の外に飛び出ると法線の向きが外側に転じて外側に強い反発力が働きます。飛び出ないように `v_0`, `dt` を適切に設定してください。
 
 ### ビルド時の DelaunayTriangulation
 

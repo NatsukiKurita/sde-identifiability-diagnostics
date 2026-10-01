@@ -14,11 +14,6 @@ function parse_commandline()
                 help = "whether to overwrite existing output files (default: false)"
                 arg_type = String
                 default = "false"
-            "--walls"
-                help = "optional wall boundary shapes to simulate (default: all config files)"
-                arg_type = String
-                nargs = '*'
-                default = String[]
         end
         return parse_args(s)
     end
@@ -26,7 +21,6 @@ function parse_commandline()
 function process_all_directories(
     simulation_base_dir::String,
     overwrite::Bool = false,
-    wall_filter::Vector{String} = String[],
     )
     model_dirs = filter(isdir, readdir(simulation_base_dir, join=true))
 
@@ -54,14 +48,9 @@ function process_all_directories(
             config = TOML.parsefile(toml_path)
             total_simulation_per_model = config["Simulation"]["total_simulation_per_model"]
             num_agents = config["Simulation"]["num_agents"]
-            boundary_shape = config["Boundary"]["boundary_shape"]
-
-            if !isempty(wall_filter) && !(boundary_shape in wall_filter)
-                continue
-            end
 
             for agent_num in num_agents
-                output_dir = joinpath(model_dir, "ground_truth", boundary_shape, "N$(agent_num)")
+                output_dir = joinpath(model_dir, "ground_truth", "N$(agent_num)")
                 if !isdir(output_dir)
                     mkpath(output_dir)
                 end
@@ -72,7 +61,7 @@ function process_all_directories(
                         println("Note: Output file already exists and --overwrite is set to false. Skipping simulation: $output_path")
                         continue
                     end
-                    println("Simulating for agent $agent_num ($boundary_shape) in directory: $model_dir")
+                    println("Simulating for agent $agent_num in directory: $model_dir")
                     execute_simulation(toml_path, output_path, agent_num, sim_num, overwrite)
                 end
             end
@@ -92,5 +81,5 @@ if abspath(PROGRAM_FILE) == @__FILE__
         error("Invalid value for --overwrite: $(args["overwrite"]). Use true/false.")
     end
 
-    process_all_directories(args["simulation_root"], overwrite, args["walls"])
+    process_all_directories(args["simulation_root"], overwrite)
 end

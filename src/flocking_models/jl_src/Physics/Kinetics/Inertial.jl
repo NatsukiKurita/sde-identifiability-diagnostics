@@ -34,8 +34,7 @@ module Kinetics_Inertial
     function update_state_by_kinetics!(
         kinetics::Kinetics_Inertial{T},
         states::State_Inertial{T}, 
-        social_buffers::AbstractBuffer,  
-        wall_buffers::AbstractBuffer,
+        social_buffers::AbstractBuffer,
         dt::Real,
         rng::AbstractRNG
     ) where T <: AbstractFloat
@@ -49,7 +48,7 @@ module Kinetics_Inertial
             current_ori = states.orientations[i]
             current_s, current_c = sincos(current_ori)
             current_direction = SVector{2, T}(current_c, current_s)
-            target_ang_vel = social_buffers.social_factor[i] + wall_buffers.wall_factor[i]
+            target_ang_vel = social_buffers.social_factor[i]
 
             states.ang_vel[i] += -(current_ang_vel - target_ang_vel) * drift_factor + noise_factor * randn(rng, T)
             states.orientations[i] += T(0.5) * (current_ang_vel + states.ang_vel[i]) * dt_T

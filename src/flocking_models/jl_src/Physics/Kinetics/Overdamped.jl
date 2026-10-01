@@ -34,7 +34,6 @@ module Kinetics_Overdamped
         kinetics::Kinetics_Overdamped{T},
         states::State_Overdamped{T},
         social_buffers::AbstractBuffer,
-        wall_buffers::AbstractBuffer,
         dt::Real,
         rng::AbstractRNG
     ) where T <: AbstractFloat
@@ -50,9 +49,7 @@ module Kinetics_Overdamped
             current_direction = SVector{2, T}(current_c, current_s)
 
             # 力の計算
-            social_factor = social_buffers.social_factor[i]
-            wall_factor = wall_buffers.wall_factor[i]
-            total_factor = social_factor + wall_factor
+            total_factor = social_buffers.social_factor[i]
 
             # 角度の更新 (Euler-Maruyama法)
             states.orientations[i] += total_factor * drift_factor + noise_factor * randn(rng, T)

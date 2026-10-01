@@ -1,8 +1,7 @@
 module SimRunner
     include("./Core/Types.jl")
-    include("./Common/Geometry.jl")
 
-    const PHYSICS_SUBDIRS = ("Kinetics", "Social", "WallAvoidance", "Neighbor")
+    const PHYSICS_SUBDIRS = ("Kinetics", "Social", "Neighbor")
 
     function include_physics_modules!()
         physics_root = joinpath(@__DIR__, "Physics")
@@ -46,21 +45,20 @@ module SimRunner
             end
         end
 
-        kinetics, social, wall_avoidance, neighbor, wall, num_frames, dt, safe_eps, T = load_simulation_setup(input_config)
+        kinetics, social, num_frames, dt, safe_eps, T = load_simulation_setup(input_config)
+        neighbor = Neighbor_Voronoi.Neighbor_Voronoi()
         seed = sim_num  # sim_numをシードとして使用することで、同じsim_numであれば同じ初期状態と同じランダムな挙動が再現されるようにする
 
         println("Configuration successfully loaded. Starting simulation...\n")
         println("Number of agents: $agent_num, Number of frames: $num_frames, Time step: $dt, Seed: $seed")
         println("Kinetics            : ", nameof(typeof(kinetics)))
         println("Social Interactions : ", nameof(typeof(social)))
-        println("Wall Avoidance      : ", nameof(typeof(wall_avoidance)))
         println("Neighbor Method     : ", nameof(typeof(neighbor)), "\n")
 
         rng = StableRNG(seed)
 
         @time history = run_simulation(
-            kinetics, social, wall_avoidance, neighbor, 
-            wall, agent_num, num_frames, dt, safe_eps, rng, T
+            kinetics, social, neighbor, agent_num, num_frames, dt, safe_eps, rng, T
         )
 
         save_simulation_h5(output_path, history)

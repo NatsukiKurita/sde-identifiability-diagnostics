@@ -1,7 +1,6 @@
 module ConfigParser
     using TOML
     using ..Types
-    using ..Geometry: construct_wall_from_boundary_info
 
     export load_simulation_setup, build_component, resolve_component_type
 
@@ -40,13 +39,8 @@ module ConfigParser
 
         kinetics       = build_component(config["Kinetics"], T)
         social         = build_component(config["Social"], T)
-        wall_avoidance = build_component(config["WallAvoidance"], T)
-        neighbor       = build_component(config["Neighbor"], T)
 
-        boundary_cfg = config["Boundary"]
-        wall = construct_wall_from_boundary_info(boundary_cfg, T)
-
-        return kinetics, social, wall_avoidance, neighbor, wall, num_frames, dt, safe_eps, T
+        return kinetics, social, num_frames, dt, safe_eps, T
     end
 
     function build_component(config::Dict, T::DataType)
