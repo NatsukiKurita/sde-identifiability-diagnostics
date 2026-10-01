@@ -1,0 +1,74 @@
+[meta]
+description = "Setting-01-1 for social-interaction-only simulations. No wall avoidance."
+
+########################################################
+# modules to be included in the simulation
+########################################################
+
+[modules]
+Kinetics = [
+    "Overdamped.jl",
+    "Inertial.jl",
+]
+Social = [
+    "Soc_KR2021.jl",
+    "Soc_G2012.jl",
+    "Soc_KV.jl",
+    "Soc_TK2020.jl",
+    "Soc_Null.jl",
+]
+WallAvoidance = [
+    "WA_Null.jl",
+]
+Neighbor = [
+    "Delaunay.jl",
+]
+
+########################################################
+# parameters for each kinetics module
+########################################################
+
+[parameters.Kinetics.Overdamped.jl]
+sigma_theta = 0.5
+
+[parameters.Kinetics.Inertial.jl]
+sigma_omega = 0.5
+tau = 0.1
+
+
+########################################################
+# parameters for each social interaction module
+########################################################
+
+[parameters.Social.Soc_KR2021.jl]
+k_alg = 0.4
+k_pos = 0.8
+m = 0.8
+d_eq = 0.02
+
+[parameters.Social.Soc_G2012.jl]
+k_pos = 1.0
+k_alg = 1.0
+
+[parameters.Social.Soc_KV.jl]
+k_alg = 2.0
+
+[parameters.Social.Soc_TK2020.jl]
+k_sep = 0.4
+k_coh = 0.5
+k_alg = 0.2
+
+[parameters.Social.Soc_Null.jl]
+
+
+########################################################
+# parameters for each wall avoidance module
+########################################################
+
+[parameters.WallAvoidance.WA_Null.jl]
+
+########################################################
+# parameters for each neighbor module
+########################################################
+
+[parameters.Neighbor.Delaunay.jl]
