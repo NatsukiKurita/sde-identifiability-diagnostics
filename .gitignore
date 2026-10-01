@@ -222,6 +222,12 @@ __marimo__/
 *.jl.*.cov
 *.jl.mem
 
+# Julia compiled sysimages & shared libraries
+*.so
+*.dylib
+*.dll
+sysimage*
+
 # Large data files
 *.h5
 
