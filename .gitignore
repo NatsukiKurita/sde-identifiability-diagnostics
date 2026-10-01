@@ -221,3 +221,10 @@ __marimo__/
 *.jl.cov
 *.jl.*.cov
 *.jl.mem
+
+# Large data files
+*.h5
+
+# OS Hidden files
+.DS_Store
+.Zone.identifier
