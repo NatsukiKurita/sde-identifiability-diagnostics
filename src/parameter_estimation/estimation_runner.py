@@ -11,13 +11,10 @@ from jax.flatten_util import ravel_pytree
 
 import src.parameter_estimation.builder as builder
 from src.constants.estimation import EstimationConfig
-from src.constants.penetration_detection import PenetrationDetectionConfig
 from src.parameter_estimation.cores.trust_constr_optimizer import trust_constr_optimizer
-from src.parameter_estimation.utils.boundary_aux import WALL_AUX_AXES, build_wall_aux_entries
 
 EstimationConfig.configure_jax_precision()
 
-OUTSIDE_CHECK_TOL = PenetrationDetectionConfig.OUTSIDE_CHECK_TOL
 RUN_MODE_SINGLE = "single"
 RUN_MODE_MULTISTART = "multistart"
 
@@ -69,86 +66,6 @@ def _evaluate_multistart_reference(loss_fn, batched_params):
 		"grad_norm_start": float(best_grad_norm),
 		"best_start_params": best_params,
 	}
-
-
-def _normalize_corners(corners_raw) -> np.ndarray:
-	corners = np.asarray(corners_raw, dtype=float)
-	if corners.ndim == 1:
-		if corners.size % 2 != 0:
-			raise ValueError("Boundary corners must contain an even number of values.")
-		corners = corners.reshape(-1, 2)
-	elif corners.ndim == 2 and corners.shape[1] == 2:
-		pass
-	else:
-		corners = corners.reshape(-1, 2)
-
-	if corners.shape[0] < 3:
-		raise ValueError("Boundary polygon must have at least 3 vertices.")
-
-	center = np.mean(corners, axis=0)
-	diff = corners - center
-	angles = np.arctan2(diff[:, 1], diff[:, 0])
-	order = np.argsort(angles)
-	return corners[order]
-
-
-def _points_inside_polygon(x: np.ndarray, y: np.ndarray, polygon: np.ndarray, tol: float = 1e-9) -> np.ndarray:
-	px = np.asarray(x, dtype=float).reshape(-1)
-	py = np.asarray(y, dtype=float).reshape(-1)
-	poly = np.asarray(polygon, dtype=float)
-
-	valid = np.isfinite(px) & np.isfinite(py)
-	inside = np.zeros(px.shape[0], dtype=bool)
-	if poly.shape[0] < 3:
-		return inside.reshape(x.shape)
-
-	xv = px[valid]
-	yv = py[valid]
-	inside_valid = np.zeros(xv.shape[0], dtype=bool)
-	on_boundary = np.zeros(xv.shape[0], dtype=bool)
-
-	x1 = poly[:, 0]
-	y1 = poly[:, 1]
-	x2 = np.roll(x1, -1)
-	y2 = np.roll(y1, -1)
-
-	for xa, ya, xb, yb in zip(x1, y1, x2, y2):
-		intersects = ((ya > yv) != (yb > yv))
-		x_intersect = (xb - xa) * (yv - ya) / ((yb - ya) + np.finfo(float).eps) + xa
-		inside_valid ^= intersects & (xv < x_intersect)
-
-		cross = (xv - xa) * (yb - ya) - (yv - ya) * (xb - xa)
-		dot = (xv - xa) * (xv - xb) + (yv - ya) * (yv - yb)
-		on_boundary |= (np.abs(cross) <= tol) & (dot <= tol)
-
-	inside[valid] = inside_valid | on_boundary
-	return inside.reshape(x.shape)
-
-
-def _detect_outside_positions(positions: np.ndarray, corners: np.ndarray, tol: float = OUTSIDE_CHECK_TOL):
-	if positions.ndim != 3 or positions.shape[-1] < 2:
-		raise ValueError("positions must have shape (T, N, D) with D >= 2.")
-
-	x = positions[..., 0]
-	y = positions[..., 1]
-	inside_mask = _points_inside_polygon(x, y, corners, tol=tol)
-	outside_mask = (~inside_mask) & np.isfinite(x) & np.isfinite(y)
-	outside_count = int(np.count_nonzero(outside_mask))
-
-	first_outside_t = None
-	first_outside_agent = None
-	if outside_count > 0:
-		first_idx = np.argwhere(outside_mask)[0]
-		first_outside_t = int(first_idx[0])
-		first_outside_agent = int(first_idx[1])
-
-	return outside_mask, outside_count, first_outside_t, first_outside_agent
-
-
-def _write_skip_message(skip_path: Path, payload: dict) -> None:
-	skip_path.parent.mkdir(parents=True, exist_ok=True)
-	with open(skip_path, "w") as f:
-		json.dump(payload, f, indent=4)
 
 
 def _split_params_by_activity(params_tree, activity_tree):
@@ -247,38 +164,6 @@ def run_estimation(
 		else:
 			angular_velocities = np.zeros_like(orientations, dtype=EstimationConfig.NP_FLOAT_DTYPE)
 
-	boundary_type = str(config_toml.get("Boundary", {}).get("boundary_shape", ""))
-	if boundary_type != "NoWall":
-		corners_np = _normalize_corners(config_toml["Boundary"]["corners"])
-	else:
-		corners_np = np.zeros((0, 2), dtype=float)
-	
-	if boundary_type != "NoWall":
-		_, outside_count, first_outside_t, first_outside_agent = _detect_outside_positions(positions, corners_np)
-		if outside_count > 0:
-			if json_filepath.exists():
-				json_filepath.unlink()
-			if h5_filepath.exists():
-				h5_filepath.unlink()
-
-			skip_payload = {
-				"status": "skipped",
-				"reason": "trajectory_outside_boundary",
-				"model_code": model_code,
-				"agent_count": agent_count,
-				"simulation_code": sim_code,
-				"source_h5": str(h5_path),
-				"outside_point_count": int(outside_count),
-				"first_outside_time_index": int(first_outside_t) if first_outside_t is not None else None,
-				"first_outside_agent_index": int(first_outside_agent) if first_outside_agent is not None else None,
-			}
-			_write_skip_message(skip_filepath, skip_payload)
-			print(
-				"Skipping sample due to out-of-bound trajectory "
-				f"(outside points={outside_count}, first=(t={first_outside_t}, agent={first_outside_agent})). "
-				f"Message saved to {skip_filepath}."
-			)
-			return
 	if skip_filepath.exists():
 		skip_filepath.unlink()
 
@@ -311,19 +196,14 @@ def run_estimation(
 		"dt": EstimationConfig.as_float_array(config_toml["Simulation"]["dt"]),
 		"v_0": EstimationConfig.as_float_array(config_toml["Simulation"]["v_0"]),
 		"safe_eps": EstimationConfig.as_float_array(config_toml["Simulation"]["safe_eps"]),
-		"delaunay_neighbors": jnp.zeros((T, 1, 1), dtype=delaunay_neighbors.dtype),
-		**build_wall_aux_entries(config_toml, corners_np, boundary_type),
+		"delaunay_neighbors": delaunay_neighbors[:-1],
 	}
-
-	if config_toml["Neighbor"]["type"] == "Neighbor_Delaunay":
-		aux_data["delaunay_neighbors"] = delaunay_neighbors[:-1]
-
-	aux_axes = dict(WALL_AUX_AXES)
-
-	# if config_toml["Neighbor"] == "Neighbor_Delaunay":
-		# from src.src.parameter_estimation.estimator_modules.Neighbor.jl_delaunay_restoration.delaunay_restoration_frondend import restore_delaunay_neighbors
-
-		# aux_data["delaunay_neighbors"] = restore_delaunay_neighbors(states["positions"], aux_data["corners"])
+	aux_axes = {
+		"dt": None,
+		"v_0": None,
+		"safe_eps": None,
+		"delaunay_neighbors": 0,
+	}
 
 	def total_loss_fn(params, states, states_next, aux_data):
 		return jnp.sum(jax.vmap(loss_fn_stepwise, in_axes=(None, 0, 0, aux_axes))(params, states, states_next, aux_data))

@@ -1,4 +1,4 @@
-module Kinetics_Overdamped
+module Dynamics_Overdamped
     using StaticArrays
     using LinearAlgebra
     using Random
@@ -7,10 +7,10 @@ module Kinetics_Overdamped
         allocate_states, reset_buffers!,
         update_state_by_kinetics!, copy_state!
 
-    export Kinetics_Overdamped, State_Overdamped
+    export Dynamics_Overdamped, State_Overdamped
 
     # model definition
-    struct Kinetics_Overdamped{T <: AbstractFloat} <: AbstractKinetics
+    struct Dynamics_Overdamped{T <: AbstractFloat} <: AbstractKinetics
         v_0::T
         sigma_theta::T
     end
@@ -21,7 +21,7 @@ module Kinetics_Overdamped
         orientations::Vector{T}
     end
 
-    function allocate_states(kinetics::Kinetics_Overdamped{T}, num_agents::Int) where T <: AbstractFloat
+    function allocate_states(kinetics::Dynamics_Overdamped{T}, num_agents::Int) where T <: AbstractFloat
         states = State_Overdamped{T}(
             fill(SVector{2, T}(zero(T), zero(T)), num_agents),
             fill(SVector{2, T}(zero(T), zero(T)), num_agents),
@@ -31,7 +31,7 @@ module Kinetics_Overdamped
     end
 
     function update_state_by_kinetics!(
-        kinetics::Kinetics_Overdamped{T},
+        kinetics::Dynamics_Overdamped{T},
         states::State_Overdamped{T},
         social_buffers::AbstractBuffer,
         dt::Real,
@@ -68,4 +68,4 @@ module Kinetics_Overdamped
         dest.velocities   .= src.velocities
         dest.orientations .= src.orientations
     end
-end # module Kinetics_Overdamped
+end # module Dynamics_Overdamped

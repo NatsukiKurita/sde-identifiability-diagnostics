@@ -1,14 +1,14 @@
-module Kinetics_Inertial
+module Dynamics_Inertial
     using StaticArrays
     using Random
 
     import ..Types: AbstractKinetics, AbstractState, AbstractBuffer,
         allocate_states, update_state_by_kinetics!, copy_state!
 
-    export Kinetics_Inertial, State_Inertial
+    export Dynamics_Inertial, State_Inertial
 
     # model definition
-    struct Kinetics_Inertial{T <: AbstractFloat} <: AbstractKinetics
+    struct Dynamics_Inertial{T <: AbstractFloat} <: AbstractKinetics
         v_0::T
         tau::T
         sigma_omega::T
@@ -21,7 +21,7 @@ module Kinetics_Inertial
         ang_vel::Vector{T}
     end
 
-    function allocate_states(kinetics::Kinetics_Inertial{T}, num_agents::Int) where T <: AbstractFloat
+    function allocate_states(kinetics::Dynamics_Inertial{T}, num_agents::Int) where T <: AbstractFloat
         states = State_Inertial{T}(
             fill(SVector{2, T}(zero(T), zero(T)), num_agents),
             fill(SVector{2, T}(zero(T), zero(T)), num_agents),
@@ -32,7 +32,7 @@ module Kinetics_Inertial
     end
 
     function update_state_by_kinetics!(
-        kinetics::Kinetics_Inertial{T},
+        kinetics::Dynamics_Inertial{T},
         states::State_Inertial{T}, 
         social_buffers::AbstractBuffer,
         dt::Real,
@@ -67,4 +67,4 @@ module Kinetics_Inertial
         dest.orientations .= src.orientations
         dest.ang_vel      .= src.ang_vel
     end
-end # module Kinetics_Inertial
+end # module Dynamics_Inertial

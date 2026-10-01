@@ -26,14 +26,14 @@
 
 | カテゴリ | ファイル例 | モジュール名 / 構造体名 | TOML の `type` |
 |----------|------------|-------------------------|----------------|
-| Kinetics | `Overdamped.jl` | `Kinetics_Overdamped` | `"Kinetics_Overdamped"` |
-| Social | `Soc_KR2021.jl` | `Soc_KR2021` | `"Soc_KR2021"` |
+| Kinetics | `Overdamped.jl` | `Dynamics_Overdamped` | `"Dynamics_Overdamped"` |
+| Social | `KR2021.jl` | `Soc_KR2021` | `"Soc_KR2021"` |
 | Neighbor | `Voronoi.jl` | `Neighbor_Voronoi` | 固定（TOML に書かない） |
 
 命名規則のまとめ:
 
-- **Kinetics**: モジュール名・構造体名に `Kinetics_` プレフィックスを付ける
-- **Social**: ファイル名（拡張子除く）と同名
+- **Kinetics**: モジュール名・構造体名に `Dynamics_` プレフィックスを付ける
+- **Social**: モジュール名・構造体名に `Soc_` プレフィックスを付ける
 - **Neighbor**: モジュール名・構造体名に `Neighbor_` プレフィックスを付ける。実行時は `Neighbor_Voronoi` のみを使う
 
 ### パラメータ構造体と TOML
@@ -94,7 +94,7 @@ Social は **kinetics が読めるスカラー因子** `social_factor` をバッ
 
 ## Social interaction
 
-**参照実装**: `Physics/Social/Soc_KR2021.jl`, `Soc_Null.jl`
+**参照実装**: `Physics/Social/KR2021.jl`, `Null.jl`
 
 ### 定義するもの
 

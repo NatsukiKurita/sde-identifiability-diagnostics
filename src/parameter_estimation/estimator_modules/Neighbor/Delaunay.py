@@ -1,8 +1,6 @@
 import jax.numpy as jnp
 
-import src.parameter_estimation.registry as registry
 
-@registry.register_neighbor("Neighbor_Delaunay")
 def neighbor_delaunay_stepwise(params, states_t, aux_data_t):
     # aux_dataからDelaunayの隣接行列を取得
     adjmat_t = aux_data_t["delaunay_neighbors"]  # shape: (N, E_max), -1はダミーエッジを表す

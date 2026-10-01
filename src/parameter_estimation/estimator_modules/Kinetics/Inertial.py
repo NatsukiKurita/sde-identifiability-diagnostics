@@ -2,13 +2,12 @@ import jax.numpy as jnp
 
 import src.parameter_estimation.registry as registry
 
-@registry.register_kinetics("Kinetics_Inertial")
+@registry.register_kinetics("Dynamics_Inertial")
 def loss__inertial_stepwise(
     params: dict,
     state_t,
     state_next,
     social_factor_t: jnp.ndarray,
-    wall_factor_t: jnp.ndarray,
     aux_data_t: dict
 ):
     N = state_t["positions"].shape[0]
@@ -23,7 +22,7 @@ def loss__inertial_stepwise(
     term1 = 0.5 * jnp.log(2 * jnp.pi * dt)
     term2 = jnp.log(dt/2)  # 数値積分による補正項
 
-    optimal_omega = social_factor_t + wall_factor_t  # shape: (N,)
+    optimal_omega = social_factor_t # shape: (N,)
     sq_diff = (omega_next - omega_t + (omega_t - optimal_omega) * (dt / tau)) ** 2
     term3 = sq_diff / (2 * (sigma_omega ** 2) * dt)
 

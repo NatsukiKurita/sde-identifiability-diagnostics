@@ -5,33 +5,6 @@ from pathlib import Path
 import toml
 
 PRESETS_ROOT = Path(__file__).parent / "parameter_presets"
-MODULE_CATEGORIES = ("Kinetics", "Social", "WallAvoidance", "Neighbor")
-
-
-def _resolve_module_params(
-    parameters: dict,
-    category: str,
-    module_file: str,
-) -> dict:
-    category_params = parameters.get(category, {})
-    if module_file in category_params:
-        value = category_params[module_file]
-        return dict(value) if isinstance(value, dict) else {}
-
-    stem = module_file.removesuffix(".jl")
-    if stem not in category_params:
-        return {}
-
-    entry = category_params[stem]
-    if not isinstance(entry, dict):
-        return {}
-
-    # TOML parses `Foo.jl` table headers as nested `{ "jl": {...} }`.
-    if set(entry.keys()) == {"jl"}:
-        inner = entry["jl"]
-        return dict(inner) if isinstance(inner, dict) else {}
-
-    return dict(entry)
 
 
 def load_preset(path: Path) -> dict:
@@ -43,15 +16,11 @@ def load_preset(path: Path) -> dict:
         "meta": raw.get("meta", {}),
         "modules": modules,
     }
-    for category in MODULE_CATEGORIES:
-        module_files = modules[category]
+    for category, module_names in modules.items():
+        category_params = parameters.get(category, {})
         preset[category] = {
-            module_file: _resolve_module_params(
-                parameters,
-                category,
-                module_file,
-            )
-            for module_file in module_files
+            name: dict(category_params[name]) if isinstance(category_params.get(name), dict) else {}
+            for name in module_names
         }
     return preset
 

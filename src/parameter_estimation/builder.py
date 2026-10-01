@@ -5,11 +5,12 @@ import importlib
 import pkgutil
 
 import src.parameter_estimation.registry as registry
+from src.parameter_estimation.estimator_modules.Neighbor.Delaunay import neighbor_delaunay_stepwise
 
 
 def auto_load_modules():
     base_package = "src.parameter_estimation.estimator_modules"
-    sub_modules = ["Neighbor", "Social", "Kinetics", "WallAvoidance"]
+    sub_modules = ["Social", "Kinetics"]
 
     for sub in sub_modules:
         pkg_name = f"{base_package}.{sub}"
@@ -23,7 +24,7 @@ def auto_load_modules():
 
 
 def extract_params_from_toml(config_toml):
-    target_modules = ["Kinetics", "Social", "WallAvoidance", "Neighbor"]
+    target_modules = ["Kinetics", "Social"]
     params = {}
 
     for module in target_modules:
@@ -40,25 +41,13 @@ def extract_params_from_toml(config_toml):
 
 
 def build_loss_fn_stepwise(config_toml):
-    neighbor_fn       = registry.NEIGHBOR_REGISTRY[config_toml["Neighbor"]["type"]]
     social_fn         = registry.SOCIAL_REGISTRY[config_toml["Social"]["type"]]
     kinetics_fn       = registry.KINETICS_REGISTRY[config_toml["Kinetics"]["type"]]
-    boundary_shape = str(config_toml.get("Boundary", {}).get("boundary_shape", ""))
-
-    if boundary_shape == "NoWall":
-        def wall_avoidance_fn(params, states_t, aux_data_t):
-            return jnp.zeros_like(states_t["orientations"])
-    else:
-        wall_avoidance_fn = registry.get_wall_avoidance_stepwise(
-            config_toml["WallAvoidance"]["type"],
-            boundary_shape,
-        )
 
     def loss_fn_stepwise(params, states_t, state_next, aux_data_t):
-        neighbor_weights = neighbor_fn(params, states_t, aux_data_t)
+        neighbor_weights = neighbor_delaunay_stepwise(params, states_t, aux_data_t)
         social_factor_t  = social_fn(params, states_t, neighbor_weights, aux_data_t)
-        wall_factor_t    = wall_avoidance_fn(params, states_t, aux_data_t)
-        loss_t           = kinetics_fn(params, states_t, state_next, social_factor_t, wall_factor_t, aux_data_t)
+        loss_t           = kinetics_fn(params, states_t, state_next, social_factor_t, aux_data_t)
 
         return loss_t
 

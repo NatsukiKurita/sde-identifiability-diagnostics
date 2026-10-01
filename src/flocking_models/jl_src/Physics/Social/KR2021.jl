@@ -16,7 +16,7 @@ module Soc_KR2021
 
     # --- バッファの定義・関数 ---
     struct Buffer_Soc_KR2021{T <: AbstractFloat} <: AbstractBuffer
-        social_factor::Vector{T} # projected social force for KR2021
+        social_factor::Vector{T} # projected social force for Soc_KR2021
     end
 
     function allocate_social_buffers(social::Soc_KR2021, num_agents::Int, T::Type{<:AbstractFloat}) 
