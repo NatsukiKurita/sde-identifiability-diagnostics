@@ -3,7 +3,7 @@ using TOML
 using ArgParse
 using .SimRunner: execute_simulation
 
-function parse_commandline()
+function parse_commandline(cli_args::Vector{String} = ARGS)
         s = ArgParseSettings(description="Fish Schooling Simulator (TOML-driven)")
         @add_arg_table! s begin
             "--simulation_root"
@@ -15,8 +15,17 @@ function parse_commandline()
                 arg_type = String
                 default = "false"
         end
-        return parse_args(s)
+        return parse_args(cli_args, s)
     end
+
+function parse_overwrite(value::String)
+    if value in ["True", "true", "T"]
+        return true
+    elseif value in ["False", "false", "F"]
+        return false
+    end
+    error("Invalid value for --overwrite: $(value). Use true/false.")
+end
 
 function process_all_directories(
     simulation_base_dir::String,
@@ -72,14 +81,5 @@ end
 
 if abspath(PROGRAM_FILE) == @__FILE__
     args = parse_commandline()
-    overwrite = args["overwrite"]
-    if overwrite in ["True", "true", "T"]
-        overwrite = true
-    elseif overwrite in ["False", "false", "F"]
-        overwrite = false
-    else
-        error("Invalid value for --overwrite: $(args["overwrite"]). Use true/false.")
-    end
-
-    process_all_directories(args["simulation_root"], overwrite)
+    process_all_directories(args["simulation_root"], parse_overwrite(args["overwrite"]))
 end

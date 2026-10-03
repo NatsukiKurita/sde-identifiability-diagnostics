@@ -1,7 +1,7 @@
 import jax.numpy as jnp
 
-import src.parameter_estimation.registry as registry
-import src.parameter_estimation.utils.geometry as geometry
+import src.QMLE.registry as registry
+import src.QMLE.utils.geometry as geometry
 
 @registry.register_social("Soc_G2012")
 def social_g2012_stepwise(params, states_t, neighbor_weights, aux_data_t):

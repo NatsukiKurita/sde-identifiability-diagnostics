@@ -4,9 +4,9 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 
-from src.constants.eigenvalue_time_series import EigenvalueTimeSeriesConfig
-from src.constants.estimation import EstimationConfig
-from src.parameter_estimation.cores.trust_constr_optimizer import trust_constr_optimizer
+from src.experiment_configs.eigenvalue_time_series import EigenvalueTimeSeriesConfig
+from src.experiment_configs.estimation import EstimationConfig
+from src.QMLE.utils.trust_constr_optimizer import trust_constr_optimizer
 
 
 def _analysis_window(states, states_next, aux_data, aux_axes):

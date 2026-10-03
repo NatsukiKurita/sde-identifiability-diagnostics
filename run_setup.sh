@@ -2,13 +2,13 @@
 # Run both setup scripts in scripts/00_setup/.
 #
 # Usage (from anywhere):
-#   scripts/00_setup/run_setup.sh
-#   scripts/00_setup/run_setup.sh python   # Python only
-#   scripts/00_setup/run_setup.sh julia    # Julia only (requires pip install -e .)
+#   ./run_setup.sh
+#   ./run_setup.sh python   # Python only
+#   ./run_setup.sh julia    # Julia only (requires pip install -e .)
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
+PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPT_DIR="${PROJECT_ROOT}/scripts/00_setup"
 VENV_DIR="${VENV_DIR:-${PROJECT_ROOT}/.venv}"
 PYTHON_BIN=""
 
@@ -20,7 +20,7 @@ Usage:
   ./run_setup.sh julia
 
 Steps:
-  python  - create .venv (if needed), pip install -r requirements.txt, pip install -e .
+  python  - create .venv (if needed), pip install -r src/requirements.txt, pip install -e .
   julia   - 01_setup_julia_env.py       (build Julia sysimage; memory-intensive)
   all     - run python, then julia (default)
 
@@ -50,7 +50,7 @@ Error: failed to create the virtual environment.
 On Ubuntu/Debian, install the venv package and rerun setup:
 
   sudo apt install -y python3.10-venv
-  scripts/00_setup/run_setup.sh python
+  ./run_setup.sh python
 
 EOF
 			exit 1
@@ -73,7 +73,7 @@ Error: failed to install pip into the virtual environment.
 On Ubuntu/Debian, install the venv package and rerun setup:
 
   sudo apt install -y python3.10-venv
-  scripts/00_setup/run_setup.sh python
+  ./run_setup.sh python
 
 EOF
 			exit 1

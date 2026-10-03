@@ -18,9 +18,9 @@ from matplotlib.lines import Line2D
 import numpy as np
 import seaborn as sns
 import toml
-from src.constants.simulation_01 import SocialSimConfig
+from src.experiment_configs.simulation import SocialSimConfig
 from src.figure_config import set_paper_style
-from src.parameter_estimation.builder import extract_params_from_toml
+from src.QMLE.builder import extract_params_from_toml
 from src.paths import DATA_ROOT, RESULTS_ROOT
 
 PARAMETER_EPS = 1e-12

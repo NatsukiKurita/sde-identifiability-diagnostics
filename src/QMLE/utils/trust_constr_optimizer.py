@@ -5,7 +5,7 @@ import numpy as np
 from scipy import optimize
 from typing import Tuple, Any, Callable
 
-from src.constants.estimation import EstimationConfig
+from src.experiment_configs.estimation import EstimationConfig
 
 
 def _normalize_initial_params(initial_params: Any) -> Any:

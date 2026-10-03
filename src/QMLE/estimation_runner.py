@@ -9,9 +9,9 @@ import numpy as np
 import toml
 from jax.flatten_util import ravel_pytree
 
-import src.parameter_estimation.builder as builder
-from src.constants.estimation import EstimationConfig
-from src.parameter_estimation.cores.trust_constr_optimizer import trust_constr_optimizer
+import src.QMLE.builder as builder
+from src.experiment_configs.estimation import EstimationConfig
+from src.QMLE.utils.trust_constr_optimizer import trust_constr_optimizer
 
 EstimationConfig.configure_jax_precision()
 

@@ -2,7 +2,7 @@
 """Plot example fish trajectories for every simulation model.
 
 For each setting under ``data/simulation`` and each model/configuration, this
-script plots sample ``0001`` for 30 seconds after burn-in. Outputs are written under
+script plots sample ``0001`` for 15 seconds after burn-in. Outputs are written under
 ``results/04_supplemental_figures/method/example_trajectories`` while preserving
 the relative directory structure below ``data/simulation``.
 """
@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -20,7 +21,9 @@ import numpy as np
 import seaborn as sns
 import toml
 
-from src.constants.master_constants import MasterConstants
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+
+from src.experiment_configs.master_constants import MasterConstants
 from src.paths import DATA_ROOT, PROJECT_ROOT
 
 DEFAULT_SIMULATION_ROOT = DATA_ROOT / "simulation"
@@ -201,7 +204,7 @@ def plot_example_trajectory(job: TrajectoryJob) -> None:
 
 
 def main() -> None:
-	parser = argparse.ArgumentParser(description="Plot 30-second example trajectories for every simulation model.")
+	parser = argparse.ArgumentParser(description="Plot example trajectories for every simulation model.")
 	parser.add_argument(
 		"--simulation-root",
 		type=Path,

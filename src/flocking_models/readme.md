@@ -2,8 +2,8 @@
 
 モデルはモジュール化されているため、kinetics、social interaction、neighbor algorithm を別個に追加できます。シミュレーションは開放領域（open field）で行い、壁との相互作用はありません。`SimRunner.jl` 内で `Physics/` 以下の各ディレクトリにある `.jl` コードが自動的に `include` されるので、ユーザーは `.jl` を適切なディレクトリに置くだけで Julia 側の登録は完了します。近傍は Voronoi 隣接に固定されており、TOML では選びません。Social が読む `neighbor_buffers.weights` のため、近傍バッファ自体は残しています。
 
-なお、Python 側のパラメータ設定（`src/types.py`、`src/constants/master_constants.py`、
-推定器、`src/constants/estimation.py`の最適化境界）は別途追加する必要があります。
+なお、Python 側のパラメータ設定（`src/experiment_configs/parameter_presets/` のプリセット、
+`src/QMLE/estimator_modules/` の推定器、`src/experiment_configs/estimation.py` の最適化境界）は別途追加する必要があります。
 
 ---
 
@@ -152,9 +152,10 @@ Social は **kinetics が読めるスカラー因子** `social_factor` をバッ
 
 ## Python 側の追加手順（Julia とは別）
 
-1. `src/types.py` の対応する `Literal[...]` にファイル名を追加（`check_model_registration` 用）
-2. `src/constants/master_constants.py` の `PARAMETER_SETTINGS` に、各 setting ごとのパラメータ辞書を追加
-3. 必要なら `scripts/01_simulation/00_prepare_toml.py` を実行して TOML を再生成
+1. `src/QMLE/estimator_modules/` の対応するカテゴリに推定器を追加
+2. `src/experiment_configs/parameter_presets/setting_*.toml` の `[modules]` にモジュール名を、`[parameters.<カテゴリ>.<モジュール名>]` にパラメータを追加
+3. `src/experiment_configs/estimation.py` に最適化境界を追加
+4. `scripts/01_simulation/00_prepare_toml.py` を実行して TOML を再生成
 
 ---
 

@@ -3,7 +3,7 @@
 
 Examples:
     python scripts/01_simulation/01_run_simulation.py
-    python scripts/01_simulation/01_run_simulation.py --setting setting_01_1 --overwrite
+    python scripts/01_simulation/01_run_simulation.py --setting setting_1 --overwrite
 """
 
 from __future__ import annotations
@@ -19,8 +19,9 @@ if str(PROJECT_ROOT) not in sys.path:
 
 
 def restore_delaunay_neighbors_all(data_h5_root: Path) -> None:
-	jl_project_path = "src/parameter_estimation/estimator_modules/Neighbor/jl_delaunay_restoration/project_config"
-	jl_script_path = "src/parameter_estimation/estimator_modules/Neighbor/jl_delaunay_restoration/delaunay_restoration_backend.jl"
+	jl_root = PROJECT_ROOT / "src/QMLE/estimator_modules/Neighbor/jl_delaunay_restoration"
+	jl_project_path = jl_root / "project_config"
+	jl_script_path = jl_root / "delaunay_restoration_backend.jl"
 
 	subprocess.run(
 		[
@@ -36,7 +37,7 @@ def restore_delaunay_neighbors_all(data_h5_root: Path) -> None:
 		[
 			"julia",
 			f"--project={jl_project_path}",
-			jl_script_path,
+			str(jl_script_path),
 			"--data_h5_root",
 			str(data_h5_root),
 		],
@@ -44,13 +45,38 @@ def restore_delaunay_neighbors_all(data_h5_root: Path) -> None:
 	)
 
 
-def run_simulation_for_setting(setting_root: Path, overwrite: bool) -> None:
-	julia_project_dir = PROJECT_ROOT / "src/dyn_models"
-	julia_script_path = julia_project_dir / "main_all.jl"
+def resolve_sysimage(use_sysimage: bool) -> Path | None:
+	from src.paths import JULIA_PROJECT_DIR, JULIA_SYSIMAGE_PATH
 
-	command = [
-		"julia",
-		f"--project={julia_project_dir}",
+	if not use_sysimage:
+		print("Sysimage disabled (--no-sysimage); Julia will compile packages at startup.")
+		return None
+	if not JULIA_SYSIMAGE_PATH.is_file():
+		print(
+			f"Sysimage not found at {JULIA_SYSIMAGE_PATH}; running without it. "
+			"Build it with ./run_setup.sh julia for faster simulations."
+		)
+		return None
+	# A sysimage built against an older Manifest bundles stale package versions.
+	manifest_path = JULIA_PROJECT_DIR / "Manifest.toml"
+	if manifest_path.is_file() and manifest_path.stat().st_mtime > JULIA_SYSIMAGE_PATH.stat().st_mtime:
+		print(
+			f"Warning: {manifest_path.name} is newer than the sysimage. "
+			"Rebuild it with ./run_setup.sh julia if package versions changed."
+		)
+	print(f"Using sysimage: {JULIA_SYSIMAGE_PATH}")
+	return JULIA_SYSIMAGE_PATH
+
+
+def run_simulation_for_setting(setting_root: Path, overwrite: bool, sysimage: Path | None) -> None:
+	from src.paths import JULIA_PROJECT_DIR
+
+	julia_script_path = JULIA_PROJECT_DIR / "main_all.jl"
+
+	command = ["julia", f"--project={JULIA_PROJECT_DIR}"]
+	if sysimage is not None:
+		command.append(f"--sysimage={sysimage}")
+	command += [
 		str(julia_script_path),
 		"--simulation_root",
 		str(setting_root),
@@ -86,21 +112,27 @@ def main() -> None:
 		action="store_true",
 		help="Skip the Delaunay-neighbor restoration step after simulation.",
 	)
+	parser.add_argument(
+		"--no-sysimage",
+		action="store_true",
+		help="Do not load the prebuilt Julia sysimage even if it exists.",
+	)
 	args = parser.parse_args()
 
-	from src.constants.simulation_01 import SocialSimConfig
+	from src.experiment_configs.simulation import SocialSimConfig
 	from src.paths import DATA_ROOT
 
 	config = SocialSimConfig
 	base = Path(args.simulation_root) if args.simulation_root else DATA_ROOT / "simulation"
 	setting_roots = resolve_setting_roots(config, base, args.setting)
+	sysimage = resolve_sysimage(use_sysimage=not args.no_sysimage)
 
 	for setting_root in setting_roots:
 		if not setting_root.is_dir():
 			print(f"Warning: {setting_root} does not exist. Skipping.")
 			continue
 		print(f"Running simulations in {setting_root}")
-		run_simulation_for_setting(setting_root, args.overwrite)
+		run_simulation_for_setting(setting_root, args.overwrite, sysimage)
 
 	if not args.skip_restore_delaunay:
 		restore_delaunay_neighbors_all(base)

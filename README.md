@@ -21,7 +21,9 @@ Run commands from the repository root. Simulation output is written under `data/
 | Target | Script | What it does |
 |--------|--------|----------------|
 | `python` | `scripts/00_setup/00_setup_python_package.py` | Create `.venv` if needed, install `src/requirements.txt`, then `pip install -e .` |
-| `julia` | `scripts/00_setup/01_setup_julia_env.py` | Build the Julia sysimage used by the simulator (memory-intensive) |
+| `julia` | `scripts/00_setup/01_setup_julia_env.py` | Build the Julia sysimage `src/flocking_models/build_tools/sys_simulation.so` used by the simulator |
+
+The sysimage build runs `src/flocking_models/build_tools/precompile_script.jl`, which simulates a few seconds of every Kinetics × Social pair in the parameter presets in both `Float32` and `Float64`. The package code those runs use is compiled into the image, so simulations skip most JIT compilation at startup. The build needs roughly 9 GB of memory. If it fails, add swap space and rerun `./run_setup.sh julia`. Rebuild after changing `src/flocking_models/Manifest.toml` or adding a model to the presets.
 
 To use a specific interpreter:
 
@@ -33,12 +35,14 @@ Later stages use `.venv/bin/python` when `PYTHON` is unset. `run_overall_procedu
 
 ### Full pipeline
 
+Settings are defined by the TOML presets in `src/experiment_configs/parameter_presets/`. Each `setting_*.toml` file becomes one setting named after its file stem (for example `setting_1`). Simulated population sizes are `NUM_AGENTS` in `src/experiment_configs/simulation.py` (currently 2, 4, and 8).
+
 After setup, `./run_overall_procedure.sh` runs every analysis stage in order. `--setting` is forwarded only to stages that accept it. Without it, those stages use every setting in `PARAMETER_SETTINGS`. `--overwrite` is forwarded to TOML preparation, simulation, estimation, diagnostics, and example trajectories.
 
 ```bash
 ./run_overall_procedure.sh
-./run_overall_procedure.sh --setting setting_01_1
-./run_overall_procedure.sh --setting setting_01_1 --overwrite
+./run_overall_procedure.sh --setting setting_1
+./run_overall_procedure.sh --setting setting_1 --overwrite
 ```
 
 | Order | Script | Role |
@@ -60,13 +64,13 @@ After setup, `./run_overall_procedure.sh` runs every analysis stage in order. `-
 
 ```bash
 .venv/bin/python scripts/01_simulation/00_prepare_toml.py --overwrite
-.venv/bin/python scripts/01_simulation/01_run_simulation.py --setting setting_01_1 --overwrite
-.venv/bin/python scripts/02_estimation/00_run_estimation.py --setting setting_01_1 --overwrite
-.venv/bin/python scripts/03_diagnostics/00_execute_diagnostics.py --setting setting_01_1 --overwrite
-.venv/bin/python scripts/04_figures/fig01_min_eigenvalue_timeseries.py --setting setting_01_1 --num-agents 2 16
-.venv/bin/python scripts/04_figures/fig02_spaghetti.py --setting setting_01_1 --num-agents 2 16
-.venv/bin/python scripts/04_figures/fig03_min_eigenvector_lollipop.py --setting setting_01_1 --num-agents 2 16
-.venv/bin/python scripts/04_figures/fig04_error_evolution.py --setting setting_01_1 --num-agents 2 16
+.venv/bin/python scripts/01_simulation/01_run_simulation.py --setting setting_1 --overwrite
+.venv/bin/python scripts/02_estimation/00_run_estimation.py --setting setting_1 --overwrite
+.venv/bin/python scripts/03_diagnostics/00_execute_diagnostics.py --setting setting_1 --overwrite
+.venv/bin/python scripts/04_figures/fig01_min_eigenvalue_timeseries.py --setting setting_1 --num-agents 2 8
+.venv/bin/python scripts/04_figures/fig02_spaghetti.py --setting setting_1 --num-agents 2 8
+.venv/bin/python scripts/04_figures/fig03_min_eigenvector_lollipop.py --setting setting_1 --num-agents 2 8
+.venv/bin/python scripts/04_figures/fig04_error_evolution.py --setting setting_1 --num-agents 2 8
 .venv/bin/python scripts/05_supplemental_figures/01_example_trajectories.py --overwrite
 .venv/bin/python scripts/05_supplemental_figures/00_method.py
 ```
@@ -85,14 +89,15 @@ Help for any stage:
 |--------|-------------|
 | `--overwrite` | Overwrite existing TOML files |
 
-`01_run_simulation.py` runs the simulations. Output goes under `data/simulation` unless `--simulation_root` is set.
+`01_run_simulation.py` runs the simulations. Output goes under `data/simulation` unless `--simulation_root` is set. If the sysimage exists, Julia starts with `--sysimage`. Otherwise the script prints a notice and runs without it. It also warns when `Manifest.toml` is newer than the sysimage.
 
 | Option | Description |
 |--------|-------------|
-| `--setting SETTING` | One setting, for example `setting_01_1`. Default: every setting in `PARAMETER_SETTINGS` |
+| `--setting SETTING` | One setting, for example `setting_1`. Default: every setting in `PARAMETER_SETTINGS` |
 | `--simulation_root PATH` | Directory that contains the `setting_*` folders. Default: `data/simulation` |
 | `--overwrite` | Overwrite existing HDF5 output |
 | `--skip-restore-delaunay` | Skip Delaunay-neighbor restoration after the simulation |
+| `--no-sysimage` | Start Julia without the sysimage, even if it exists |
 
 ### 02 Estimation
 
@@ -144,7 +149,7 @@ Shared options:
 | `01_example_trajectories.py` | A short example trajectory for every simulation model | `results/04_supplemental_figures/method/example_trajectories/` |
 | `00_method.py` | Minimum-eigenvalue trajectories for a well-behaved sample and a volatile sample | `results/04_supplemental_figures/method/` |
 
-`00_method.py` reads `eval_trend_at_opt.json` (or a result directory or `summary.json` that points at it). Its built-in sample paths are under `results/setting_01_1`. It does not take `--setting`.
+`00_method.py` reads `eval_trend_at_opt.json` (or a result directory or `summary.json` that points at it). Its built-in sample paths are under `results/setting_1`. It does not take `--setting`.
 
 Example trajectories:
 
@@ -152,8 +157,8 @@ Example trajectories:
 |--------|-------------|
 | `--simulation-root PATH` | Simulation data root |
 | `--output-root PATH` | Figure output root |
-| `--sample-id ID` | Four-digit simulation sample id |
-| `--duration SECONDS` | Trajectory length after burn-in |
+| `--sample-id ID` | Four-digit simulation sample id (default: `0001`) |
+| `--duration SECONDS` | Trajectory length after burn-in (default: 15) |
 | `--burn-in SECONDS` | Burn-in omitted from the plot |
 | `--overwrite` | Overwrite existing PDF and PNG files |
 
@@ -164,5 +169,5 @@ Method comparison:
 | `--well-behaved-path PATH` | Result directory, `summary.json`, or `eval_trend_at_opt.json` for the well-behaved example |
 | `--volatile-path PATH` | Same, for the volatile example |
 | `--output-dir PATH` | Directory where the figure is written |
-| `--time-limit SECONDS` | Maximum time on the x-axis (default: 300) |
+| `--time-limit SECONDS` | Maximum time on the x-axis (default: 60) |
 | `--plot-to-end` | Plot the full trajectory instead of stopping at `--time-limit` |

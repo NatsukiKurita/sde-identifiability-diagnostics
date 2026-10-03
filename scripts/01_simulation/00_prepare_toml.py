@@ -25,7 +25,7 @@ def _component_toml_dict(module_name: str, params: dict) -> dict:
 
 def create_dir_and_toml(overwrite: bool = True) -> None:
 	import toml
-	from src.constants.simulation_01 import SocialSimConfig
+	from src.experiment_configs.simulation import SocialSimConfig
 	from src.paths import DATA_ROOT
 
 	config = SocialSimConfig

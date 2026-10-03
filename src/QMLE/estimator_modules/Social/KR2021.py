@@ -1,6 +1,6 @@
 import jax.numpy as jnp
 
-import src.parameter_estimation.registry as registry
+import src.QMLE.registry as registry
 
 @registry.register_social("Soc_KR2021")
 def social_kr2021_stepwise(params, states_t, neighbor_weights, aux_data_t):

@@ -11,16 +11,19 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 
 import matplotlib.pyplot as plt
 import seaborn as sns
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+
 from src.paths import PROJECT_ROOT
 
 # Edit these sample IDs to choose representative samples without CLI arguments.
-DEFAULT_SETTING = "setting_01_1"
+DEFAULT_SETTING = "setting_1"
 DEFAULT_WELL_BEHAVED_SAMPLE_ID = "0007_N2_0003"
 DEFAULT_VOLATILE_SAMPLE_ID = "0009_N2_0003"
 
@@ -314,7 +317,7 @@ def main() -> None:
 		"--time-limit",
 		type=float,
 		default=DEFAULT_TIME_LIMIT_SECONDS,
-		help="Maximum time shown on the x-axis in seconds (default: 300).",
+		help="Maximum time shown on the x-axis in seconds (default: 60).",
 	)
 	parser.add_argument(
 		"--plot-to-end",

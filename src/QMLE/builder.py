@@ -4,12 +4,12 @@ import toml
 import importlib
 import pkgutil
 
-import src.parameter_estimation.registry as registry
-from src.parameter_estimation.estimator_modules.Neighbor.Delaunay import neighbor_delaunay_stepwise
+import src.QMLE.registry as registry
+from src.QMLE.estimator_modules.Neighbor.Delaunay import neighbor_delaunay_stepwise
 
 
 def auto_load_modules():
-    base_package = "src.parameter_estimation.estimator_modules"
+    base_package = "src.QMLE.estimator_modules"
     sub_modules = ["Social", "Kinetics"]
 
     for sub in sub_modules:

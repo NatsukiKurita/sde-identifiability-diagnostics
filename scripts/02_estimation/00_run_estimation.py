@@ -12,6 +12,7 @@ Outputs (per model / agent count / simulation):
 
 import argparse
 import functools
+import importlib
 import json
 import sys
 from pathlib import Path
@@ -23,13 +24,15 @@ import numpy as np
 import toml
 from jax.flatten_util import ravel_pytree
 
-import src.parameter_estimation.builder as builder
-from src.constants.estimation import EstimationConfig
-from src.constants.simulation_01 import SocialSimConfig
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+
+import src.QMLE.builder as builder
+from src.experiment_configs.estimation import EstimationConfig
+from src.experiment_configs.simulation import SocialSimConfig
 from src.paths import DATA_ROOT, RESULTS_ROOT
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from error_evolution import estimate_parameter_trend
+estimate_parameter_trend = importlib.import_module("01_error_evolution").estimate_parameter_trend
 
 EstimationConfig.configure_jax_precision()
 
@@ -432,7 +435,7 @@ def main():
 		"--setting",
 		type=str,
 		default=None,
-		help="Run only this setting (e.g. setting_01_1). Default: all settings in PARAMETER_SETTINGS.",
+		help="Run only this setting (e.g. setting_1). Default: all settings in PARAMETER_SETTINGS.",
 	)
 	parser.add_argument("--overwrite", action="store_true", help="Whether to overwrite existing results.")
 	args = parser.parse_args()

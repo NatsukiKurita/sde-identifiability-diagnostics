@@ -3,8 +3,8 @@
 #
 # Usage (from the repository root, after ./run_setup.sh):
 #   ./run_overall_procedure.sh
-#   ./run_overall_procedure.sh --setting setting_01_1
-#   ./run_overall_procedure.sh --setting setting_01_1 --overwrite
+#   ./run_overall_procedure.sh --setting setting_1
+#   ./run_overall_procedure.sh --setting setting_1 --overwrite
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -34,7 +34,7 @@ Runs every stage after environment setup, in order:
 --setting limits stages that accept it (simulation, estimation, diagnostics,
 and paper figures). Omitted means every setting in PARAMETER_SETTINGS.
 Example-trajectory and method figures use those scripts' own defaults.
-The method figure reads its built-in sample paths under results/setting_01_1.
+The method figure reads its built-in sample paths under results/setting_1.
 
 --overwrite is forwarded to TOML preparation, simulation, estimation,
 diagnostics, and example trajectories.

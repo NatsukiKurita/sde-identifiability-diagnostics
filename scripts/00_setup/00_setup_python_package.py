@@ -9,7 +9,7 @@ def setup_python_package():
 	print("=" * 60)
 
 	root_dir = Path(__file__).resolve().parents[2]
-	requirements_path = root_dir / "requirements.txt"
+	requirements_path = root_dir / "src" / "requirements.txt"
 
 	if not (root_dir / "pyproject.toml").exists():
 		print(f"❌ Error: pyproject.toml not found at {root_dir}")

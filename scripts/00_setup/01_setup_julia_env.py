@@ -2,7 +2,9 @@ import subprocess
 import sys
 from pathlib import Path
 
-from src.paths import PROJECT_ROOT, JULIA_PROJECT_DIR
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+
+from src.paths import PROJECT_ROOT, JULIA_PROJECT_DIR, JULIA_SYSIMAGE_PATH
 
 ########################################
 # 3. ビルドするときにDelaunayTriangulationが重くて動かないがち.
@@ -50,7 +52,8 @@ def build_sysimage():
         if process.returncode == 0:
             print("\n" + "="*60)
             print(" ✅ Sysimage created successfully!")
-            print(f"    Location: {JULIA_PROJECT_DIR / 'build_tools' / 'sys_simulation.so'}")
+            print(f"    Location: {JULIA_SYSIMAGE_PATH}")
+            print("    scripts/01_simulation/01_run_simulation.py loads it automatically.")
             print("="*60)
         else:
             print("\n❌ Build failed with return code:", process.returncode)

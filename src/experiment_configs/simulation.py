@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 
-from src.constants.master_constants import MasterConstants
-from src.constants.parameter_settings import load_parameter_presets
+from src.experiment_configs.master_constants import MasterConstants
+from src.experiment_configs.parameter_settings import load_parameter_presets
 
 
 @dataclass(frozen=True)

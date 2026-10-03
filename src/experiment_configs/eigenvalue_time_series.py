@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from src.constants.master_constants import MasterConstants
+from src.experiment_configs.master_constants import MasterConstants
 
 
 @dataclass(frozen=True)

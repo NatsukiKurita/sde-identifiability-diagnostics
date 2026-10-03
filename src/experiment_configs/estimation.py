@@ -5,7 +5,7 @@ import numpy as np
 from scipy.stats import qmc
 from typing import Any
 
-from src.constants.master_constants import MasterConstants
+from src.experiment_configs.master_constants import MasterConstants
 
 
 @dataclass(frozen=True)
