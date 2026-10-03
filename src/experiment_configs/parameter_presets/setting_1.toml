@@ -35,9 +35,9 @@ tau = 0.1
 ########################################################
 
 [parameters.Social.Soc_KR2021]
-k_alg = 0.4
-k_pos = 0.8
-m = 0.6
+k_alg = 1.0
+k_pos = 1.0
+m = 1.0
 d_eq = 0.02
 
 [parameters.Social.Soc_G2012]

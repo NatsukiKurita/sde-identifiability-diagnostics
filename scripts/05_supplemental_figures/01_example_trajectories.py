@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Plot example fish trajectories for every simulation model.
 
-For each section under ``data/simulation`` and each model/configuration, this
+For each setting under ``data/simulation`` and each model/configuration, this
 script plots sample ``0001`` for 30 seconds after burn-in. Outputs are written under
 ``results/04_supplemental_figures/method/example_trajectories`` while preserving
 the relative directory structure below ``data/simulation``.
@@ -35,7 +35,6 @@ class TrajectoryJob:
 	config_path: Path
 	h5_path: Path
 	output_path: Path
-	section: str
 	setting: str
 	model_id: str
 	population: str
@@ -128,20 +127,14 @@ def discover_jobs(
 	sample_id: str,
 	duration_seconds: float,
 	burn_in_seconds: float,
-	sections: list[str] | None,
 ) -> list[TrajectoryJob]:
-	section_filter = set(sections) if sections else None
 	jobs: list[TrajectoryJob] = []
 
-	for config_path in sorted(simulation_root.glob("*/setting_*/model_*/config_*.toml")):
-		section = config_path.relative_to(simulation_root).parts[0]
-		if section_filter is not None and section not in section_filter:
-			continue
-
+	for config_path in sorted(simulation_root.glob("setting_*/model_*/config_*.toml")):
 		config_toml = toml.load(config_path)
 		model_id = _parse_model_id(config_path)
 		dt = float(config_toml["Simulation"]["dt"])
-		setting = config_path.relative_to(simulation_root).parts[1]
+		setting = config_path.relative_to(simulation_root).parts[0]
 
 		for population in config_toml["Simulation"]["num_agents"]:
 			h5_path = _simulation_path(config_path, model_id, int(population), sample_id)
@@ -154,7 +147,6 @@ def discover_jobs(
 					config_path=config_path,
 					h5_path=h5_path,
 					output_path=_output_path_for_h5(h5_path, simulation_root, output_root),
-					section=section,
 					setting=setting,
 					model_id=model_id,
 					population=f"N{int(population)}",
@@ -195,7 +187,7 @@ def plot_example_trajectory(job: TrajectoryJob) -> None:
 		ax.scatter(agent_positions[-1, 0], agent_positions[-1, 1], color=color, s=24, marker="x", zorder=3)
 
 	ax.set_title(
-		f"{job.section} {job.setting} model_{job.model_id}\n"
+		f"{job.setting} model_{job.model_id}\n"
 		f"{model_label}, {job.population}, "
 		f"{time_start:.1f}-{time_end:.1f} s ({plot_duration:.1f} s)"
 	)
@@ -214,7 +206,7 @@ def main() -> None:
 		"--simulation-root",
 		type=Path,
 		default=DEFAULT_SIMULATION_ROOT,
-		help="Root directory containing section/setting/model simulation data.",
+		help="Root directory containing setting/model simulation data.",
 	)
 	parser.add_argument(
 		"--output-root",
@@ -241,12 +233,6 @@ def main() -> None:
 		help="Burn-in duration in seconds before trajectory plotting starts.",
 	)
 	parser.add_argument(
-		"--sections",
-		nargs="+",
-		default=None,
-		help="Optional section filters, e.g. 01_social_interaction.",
-	)
-	parser.add_argument(
 		"--overwrite",
 		action="store_true",
 		help="Overwrite existing PDF/PNG outputs instead of skipping them.",
@@ -262,7 +248,6 @@ def main() -> None:
 		sample_id=args.sample_id,
 		duration_seconds=float(args.duration),
 		burn_in_seconds=float(args.burn_in),
-		sections=args.sections,
 	)
 	if not jobs:
 		raise FileNotFoundError(f"No trajectory jobs found under {simulation_root}")

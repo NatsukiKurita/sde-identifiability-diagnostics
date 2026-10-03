@@ -29,7 +29,7 @@ def create_dir_and_toml(overwrite: bool = True) -> None:
 	from src.paths import DATA_ROOT
 
 	config = SocialSimConfig
-	simdata_root = DATA_ROOT / "simulation" / config.SIMULATION_CAMPAIGN
+	simdata_root = DATA_ROOT / "simulation"
 	simdata_root.mkdir(parents=True, exist_ok=True)
 
 	for setting_name, parameter_settings in config.PARAMETER_SETTINGS.items():

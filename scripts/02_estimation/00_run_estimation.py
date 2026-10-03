@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Run multistart parameter estimation.
 
-For each simulation trajectory under ``data/simulation/01_social_interaction/<setting>/``,
+For each simulation trajectory under ``data/simulation/<setting>/``,
 this script optimizes parameters (multistart + trust-constr) and writes the loss
 and parameter estimates. Hessian diagnostics are computed separately.
 
@@ -33,8 +33,7 @@ from error_evolution import estimate_parameter_trend
 
 EstimationConfig.configure_jax_precision()
 
-DEFAULT_SIMDATA_ROOT = DATA_ROOT / "simulation" / SocialSimConfig.SIMULATION_CAMPAIGN
-DEFAULT_RESULTS_SUBDIR = SocialSimConfig.SIMULATION_CAMPAIGN
+DEFAULT_SIMDATA_ROOT = DATA_ROOT / "simulation"
 
 
 def _compute_loss_and_grad_norm(loss_fn, params):
@@ -146,14 +145,12 @@ def run_estimation(
 	h5_path: Path,
 	setting_name: str,
 	overwrite: bool = False,
-	results_subdir: str = DEFAULT_RESULTS_SUBDIR,
 ):
 	model_code = config_toml_path.stem.split("_")[-1]
 	sim_code = h5_path.stem.split("_")[-1]
 	agent_count = h5_path.stem.split("_")[-2]
 	result_dir = (
 		RESULTS_ROOT
-		/ results_subdir
 		/ setting_name
 		/ f"model_{model_code}"
 		/ agent_count
@@ -204,7 +201,7 @@ def run_estimation(
 		"angular_velocities": angular_velocities[1:],
 	}
 
-	T, N, _ = states["positions"].shape
+	_, N, _ = states["positions"].shape
 
 	loss_fn_stepwise = builder.build_loss_fn_stepwise(config_toml)
 	lower_bounds, upper_bounds = EstimationConfig.extract_bounds(config_toml)
@@ -310,11 +307,26 @@ def run_estimation(
 	if nonactive_best_params_tree is None:
 		nonactive_best_params_tree = {}
 
-	init_reference = _evaluate_multistart_reference(loss_fn_fixed, optimizer_initial_params)
+	burn_in_frames = int(parameter_estimates["burn_in_frames"])
+	analysis_states = {key: value[burn_in_frames:] for key, value in states.items()}
+	analysis_states_next = {key: value[burn_in_frames:] for key, value in states_next.items()}
+	analysis_aux_data = {
+		key: value[burn_in_frames:] if aux_axes.get(key) == 0 else value
+		for key, value in aux_data.items()
+	}
+	analysis_loss_fn = functools.partial(
+		total_loss_fn,
+		states=analysis_states,
+		states_next=analysis_states_next,
+		aux_data=analysis_aux_data,
+	)
+	analysis_num_steps = int(analysis_states["positions"].shape[0])
+
+	init_reference = _evaluate_multistart_reference(analysis_loss_fn, optimizer_initial_params)
 	loss_start = init_reference["loss_start"]
 	grad_norm_start = init_reference["grad_norm_start"]
-	loss_opt, grad_norm_opt = _compute_loss_and_grad_norm(loss_fn_fixed, best_params)
-	normalizer = float(N * T)
+	loss_opt, grad_norm_opt = _compute_loss_and_grad_norm(analysis_loss_fn, best_params)
+	normalizer = float(N * analysis_num_steps)
 	loss_start_norm = float(loss_start / normalizer)
 	loss_opt_norm = float(loss_opt / normalizer)
 
@@ -361,7 +373,6 @@ def run_all_estimations(
 	sim_root: Path,
 	overwrite: bool = False,
 	setting: str | None = None,
-	results_subdir: str = DEFAULT_RESULTS_SUBDIR,
 ):
 	base = Path(sim_root)
 
@@ -406,7 +417,6 @@ def run_all_estimations(
 						h5_path=h5_path,
 						setting_name=setting_name,
 						overwrite=overwrite,
-						results_subdir=results_subdir,
 					)
 
 

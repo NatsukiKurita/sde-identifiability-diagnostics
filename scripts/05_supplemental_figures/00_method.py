@@ -29,7 +29,7 @@ def _sample_path_from_id(sample_id: str, setting: str = DEFAULT_SETTING) -> Path
 	model_id, population, run_id = sample_id.split("_")
 	return (
 		PROJECT_ROOT
-		/ "results/01_social_interaction"
+		/ "results"
 		/ setting
 		/ f"model_{model_id}"
 		/ population

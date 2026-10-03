@@ -4,8 +4,26 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 
+from src.constants.eigenvalue_time_series import EigenvalueTimeSeriesConfig
 from src.constants.estimation import EstimationConfig
 from src.parameter_estimation.cores.trust_constr_optimizer import trust_constr_optimizer
+
+
+def _analysis_window(states, states_next, aux_data, aux_axes):
+	"""Keep only the post-burn-in trajectory used for estimation."""
+	burn_in_frames = int(EigenvalueTimeSeriesConfig.BURN_IN)
+	num_steps = int(states["positions"].shape[0])
+	burn_in_frames = min(max(0, burn_in_frames), max(0, num_steps - 1))
+	if burn_in_frames == 0:
+		return states, states_next, aux_data, 0
+
+	analysis_states = {key: value[burn_in_frames:] for key, value in states.items()}
+	analysis_states_next = {key: value[burn_in_frames:] for key, value in states_next.items()}
+	analysis_aux_data = {
+		key: value[burn_in_frames:] if aux_axes.get(key) == 0 else value
+		for key, value in aux_data.items()
+	}
+	return analysis_states, analysis_states_next, analysis_aux_data, burn_in_frames
 
 
 def _build_time_points(num_steps: int, dt: float, interval_seconds: float) -> tuple[np.ndarray, np.ndarray]:
@@ -54,7 +72,13 @@ def estimate_parameter_trend(
 	dt: float,
 	interval_seconds: float,
 ) -> tuple[dict, dict]:
-	"""Re-estimate parameters from cumulative trajectory prefixes."""
+	"""Re-estimate parameters from cumulative post-burn-in trajectory prefixes."""
+	states, states_next, aux_data, burn_in_frames = _analysis_window(
+		states,
+		states_next,
+		aux_data,
+		aux_axes,
+	)
 	time_indices, time_seconds = _build_time_points(
 		states["positions"].shape[0],
 		dt,
@@ -141,6 +165,8 @@ def estimate_parameter_trend(
 
 	return {
 		"interval_seconds": float(interval_seconds),
+		"burn_in_frames": int(burn_in_frames),
+		"burn_in_seconds": float(burn_in_frames) * float(dt),
 		"time_seconds": [float(value) for value in time_seconds],
 		"time_indices": [int(value) for value in time_indices],
 		"estimates": estimates,

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Compute the Hessian at the saved optimum and its minimum eigenvalue.
 
-For each estimated trajectory under ``results/01_social_interaction/<setting>/``,
+For each estimated trajectory under ``results/<setting>/``,
 this script:
 
 1. loads the optimal parameters written by ``02_estimation``,
@@ -30,16 +30,15 @@ from jax.flatten_util import ravel_pytree
 
 import src.parameter_estimation.builder as builder
 from src.constants.estimation import EstimationConfig
-from src.constants.eigenvalue_trend import EigenvalueTrendConfig
+from src.constants.eigenvalue_time_series import EigenvalueTimeSeriesConfig
 from src.constants.simulation_01 import SocialSimConfig
 from src.paths import DATA_ROOT, RESULTS_ROOT
 
 EstimationConfig.configure_jax_precision()
 
-DEFAULT_SIMDATA_ROOT = DATA_ROOT / "simulation" / SocialSimConfig.SIMULATION_CAMPAIGN
-DEFAULT_RESULTS_SUBDIR = SocialSimConfig.SIMULATION_CAMPAIGN
+DEFAULT_SIMDATA_ROOT = DATA_ROOT / "simulation"
 
-BURN_IN_SECONDS = float(EigenvalueTrendConfig.BURN_IN * EigenvalueTrendConfig.TIME_STEP)
+BURN_IN_SECONDS = float(EigenvalueTimeSeriesConfig.BURN_IN * EigenvalueTimeSeriesConfig.TIME_STEP)
 
 
 def _split_params_by_activity(params_tree, activity_tree):
@@ -268,14 +267,12 @@ def run_diagnostics(
 	h5_path: Path,
 	setting_name: str,
 	overwrite: bool = False,
-	results_subdir: str = DEFAULT_RESULTS_SUBDIR,
 ):
 	model_code = config_toml_path.stem.split("_")[-1]
 	sim_code = h5_path.stem.split("_")[-1]
 	agent_count = h5_path.stem.split("_")[-2]
 	result_dir = (
 		RESULTS_ROOT
-		/ results_subdir
 		/ setting_name
 		/ f"model_{model_code}"
 		/ agent_count
@@ -505,7 +502,6 @@ def run_all_estimations(
 	sim_root: Path,
 	overwrite: bool = False,
 	setting: str | None = None,
-	results_subdir: str = DEFAULT_RESULTS_SUBDIR,
 ):
 	base = Path(sim_root)
 
@@ -550,7 +546,6 @@ def run_all_estimations(
 						h5_path=h5_path,
 						setting_name=setting_name,
 						overwrite=overwrite,
-						results_subdir=results_subdir,
 					)
 
 

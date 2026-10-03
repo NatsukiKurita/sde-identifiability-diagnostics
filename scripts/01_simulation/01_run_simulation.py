@@ -70,7 +70,7 @@ def main() -> None:
 	parser = argparse.ArgumentParser(description="Run social-interaction simulations.")
 	parser.add_argument(
 		"--simulation_root",
-		help="Base path containing setting_* directories. Defaults to data/simulation/<campaign>.",
+		help="Base path containing setting_* directories. Defaults to data/simulation.",
 	)
 	parser.add_argument(
 		"--setting",
@@ -92,7 +92,7 @@ def main() -> None:
 	from src.paths import DATA_ROOT
 
 	config = SocialSimConfig
-	base = Path(args.simulation_root) if args.simulation_root else DATA_ROOT / "simulation" / config.SIMULATION_CAMPAIGN
+	base = Path(args.simulation_root) if args.simulation_root else DATA_ROOT / "simulation"
 	setting_roots = resolve_setting_roots(config, base, args.setting)
 
 	for setting_root in setting_roots:

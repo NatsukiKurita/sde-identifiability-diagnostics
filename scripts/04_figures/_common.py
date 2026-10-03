@@ -203,7 +203,7 @@ def add_sqrt_x_log_x_guide(
 	y_values = guide_scale * shape
 	label_x = float(np.sqrt(x_min * x_end))
 	label_y = guide_scale * np.sqrt(label_x) * np.log(label_x) * 1.35
-	_draw_axis_guide(ax, x_values, y_values, r"$\sqrt{x}\,\log x$", label_x, label_y)
+	_draw_axis_guide(ax, x_values, y_values, r"$\sqrt{T}\,\log T$", label_x, label_y)
 
 
 def add_split_line_legends(
@@ -271,7 +271,6 @@ def add_split_line_legends(
 		)
 
 
-CAMPAIGN = SocialSimConfig.SIMULATION_CAMPAIGN
 DEFAULT_NUM_AGENTS = list(SocialSimConfig.NUM_AGENTS)
 MAIN_TEXT_NUM_AGENTS = [2]
 MAIN_TEXT_NUM_AGENT = 2
@@ -351,7 +350,7 @@ def _split_model_label(model_label: str) -> tuple[str, str]:
 
 
 def _load_ledger_inverse(setting_name: str) -> dict[int, str]:
-	ledger_path = DATA_ROOT / "simulation" / CAMPAIGN / setting_name / "ledger.json"
+	ledger_path = DATA_ROOT / "simulation" / setting_name / "ledger.json"
 	if not ledger_path.is_file():
 		return {}
 	with open(ledger_path, "r") as f:
@@ -367,16 +366,11 @@ def _model_label(model_id: str, ledger_inverse: dict[int, str]) -> str:
 
 
 def _parse_result_paths(summary_path: Path) -> tuple[str, str, int, str] | None:
-	parts = summary_path.parts
-	try:
-		setting_idx = parts.index(CAMPAIGN) + 1
-	except ValueError:
-		return None
-
-	setting_name = parts[setting_idx]
-	model_dir = parts[setting_idx + 1]
-	agent_dir = parts[setting_idx + 2]
-	sample_name = parts[setting_idx + 3]
+	sample_dir = summary_path.parent
+	agent_dir = sample_dir.parent.name
+	model_dir = sample_dir.parent.parent.name
+	setting_name = sample_dir.parent.parent.parent.name
+	sample_name = sample_dir.name
 
 	if not model_dir.startswith("model_") or not agent_dir.startswith("N"):
 		return None
@@ -417,7 +411,6 @@ def _load_truth_params(setting_name: str, model_id: str) -> dict | None:
 	config_path = (
 		DATA_ROOT
 		/ "simulation"
-		/ CAMPAIGN
 		/ setting_name
 		/ f"model_{model_id}"
 		/ f"config_{model_id}.toml"
@@ -750,7 +743,7 @@ def add_common_arguments(parser: argparse.ArgumentParser) -> argparse.ArgumentPa
 	parser.add_argument(
 		"--results-root",
 		type=Path,
-		default=RESULTS_ROOT / CAMPAIGN,
+		default=RESULTS_ROOT,
 		help="Root directory containing setting_* result folders.",
 	)
 	parser.add_argument("--setting", type=str, default=None, help="Process only this setting.")

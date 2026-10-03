@@ -1,6 +1,6 @@
 # シミュレーション・推定・診断・描画ワークフロー
 
-社会相互作用モデルの処理は、次の順で実行します。結果は `data/simulation/01_social_interaction` と `results/01_social_interaction` に保存します。
+社会相互作用モデルの処理は、次の順で実行します。結果は `data/simulation` と `results` に保存します。
 
 ## 前提
 
@@ -27,10 +27,10 @@ export PYTHON=/path/to/your/python
 | 段階 | スクリプト | 内容 | 主な出力 |
 |------|-------------|------|----------|
 | 00 | `scripts/00_setup/run_setup.sh` | Python / Julia 環境 | `.venv` |
-| 01 | `scripts/01_simulation/` | TOML 準備とシミュレーション | `data/simulation/01_social_interaction/` |
+| 01 | `scripts/01_simulation/` | TOML 準備とシミュレーション | `data/simulation/` |
 | 02 | `scripts/02_estimation/02_estimation.py` | パラメータ推定 | `summary.json`, `parameter_estimates.json` |
 | 03 | `scripts/03_diagnostics/03_diagnostics.py` | 最適解のヘシアンと最小固有値 | `results.h5`, `eval_trend_at_opt.json` |
-| 04 | `scripts/04_figures/fig*.py` | 論文用図（図ごとに実行） | `results/01_social_interaction/<setting>/figures/` |
+| 04 | `scripts/04_figures/fig*.py` | 論文用図（図ごとに実行） | `results/<setting>/figures/` |
 | 05 | `scripts/05_supplemental_figures/` | 補足図 | 各スクリプトの出力先 |
 
 ## よく使うコマンド
@@ -78,7 +78,7 @@ export PYTHON=/path/to/your/python
 | オプション | 説明 |
 |-----------|------|
 | `--setting SETTING` | 対象 setting（例: `setting_01_1`） |
-| `--simulation_root PATH` | シミュレーションルート（省略時: `data/simulation/01_social_interaction`） |
+| `--simulation_root PATH` | シミュレーションルート（省略時: `data/simulation`） |
 | `--overwrite` | 既存 HDF5 を上書き |
 | `--skip-restore-delaunay` | シミュレーション後の Delaunay 復元をスキップ |
 
@@ -105,14 +105,14 @@ export PYTHON=/path/to/your/python
 | スクリプト | 内容 |
 |-----------|------|
 | `fig01_min_eigenvalue_timeseries.py` | 最小固有値の時系列 |
-| `fig02_spaghetti_all_models.py` | 全社会モデルのスパゲッティ |
+| `fig02_spaghetti.py` | 全社会モデルのスパゲッティ |
 | `fig03_min_eigenvector_lollipop.py` | 最小固有ベクトルのロリポップ |
-| `fig04_precision_timeseries.py` | パラメータ精度の時系列 |
+| `fig04_error_evolution.py` | パラメータ精度の時系列 |
 
 | オプション | 説明 |
 |-----------|------|
 | `--setting SETTING` | 対象 setting |
-| `--results-root PATH` | 結果ルート（省略時: `results/01_social_interaction`） |
+| `--results-root PATH` | 結果ルート（省略時: `results`） |
 | `--num-agents N ...` | 図に含める個体数 |
 | `--main-num-agents N ...` | 本文パネル用の個体数 |
 
