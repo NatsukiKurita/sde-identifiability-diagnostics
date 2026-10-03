@@ -2,25 +2,30 @@ using HDF5
 using StaticArrays
 using DelaunayTriangulation
 using LinearAlgebra
-using Random
+using StableRNGs
 
-# --- 1. HDF5 の予行演習 ---
+# HDF5 書き出し。SimIO.save_simulation_h5 は SVector 配列を reinterpret して write する。
 let
     path = tempname() * ".h5"
+    positions = [SVector{2, Float64}(randn(), randn()) for _ in 1:4, _ in 1:2]
+    data = reinterpret(reshape, Float64, positions)
     h5open(path, "w") do file
-        file["data"] = rand(10, 2) #
+        write(file, "positions", data)
     end
-    h5read(path, "data") # 読み込み
 end
 
-# --- 2. 計算の予行演習 ---
+# Social 側は SVector{2} に norm を掛ける。
 let
-    v = [@SVector[randn(), randn()] for _ in 1:10]
-    d = norm.(v) # LinearAlgebraの関数など
+    norm(SVector(randn(), randn()))
 end
 
-# --- 3. 近傍探索の予行演習 (追加推奨) ---
+# Neighbor_Voronoi は Vector{SVector{2}} を rng 付きで triangulate し、get_neighbours を読む。
 let
-    points = rand(2, 5) # 5点のダミーデータ
-    tri = triangulate(points)
+    rng = StableRNG(1)
+    positions = [SVector{2, Float64}(rand(rng), rand(rng)) for _ in 1:5]
+    tri = triangulate(positions, rng=rng)
+    for i in eachindex(positions)
+        for _ in get_neighbours(tri, i)
+        end
+    end
 end

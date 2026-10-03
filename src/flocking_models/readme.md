@@ -154,7 +154,7 @@ Social は **kinetics が読めるスカラー因子** `social_factor` をバッ
 
 1. `src/types.py` の対応する `Literal[...]` にファイル名を追加（`check_model_registration` 用）
 2. `src/constants/master_constants.py` の `PARAMETER_SETTINGS` に、各 setting ごとのパラメータ辞書を追加
-3. 必要なら `scripts/01_social_interaction/00_prepare_toml.py` を実行して TOML を再生成
+3. 必要なら `scripts/01_simulation/00_prepare_toml.py` を実行して TOML を再生成
 
 ---
 
