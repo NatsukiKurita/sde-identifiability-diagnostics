@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Plot minimum-eigenvalue trajectories for selected well-behaved and volatile samples.
+"""Plot minimum-eigenvalue trajectories for selected identifiable and unidentifiable samples.
 
 Creates one figure with both optimum trajectories from ``result_time_series.h5`` under
 each sample result directory. The stored 24 Hz series is sampled once per second for the
@@ -24,8 +24,8 @@ from src.paths import PROJECT_ROOT
 
 # Edit these sample IDs to choose representative samples without CLI arguments.
 DEFAULT_SETTING = "setting_1"
-DEFAULT_WELL_BEHAVED_SAMPLE_ID = "0007_N2_0003"
-DEFAULT_VOLATILE_SAMPLE_ID = "0009_N2_0003"
+DEFAULT_IDENTIFIABLE_SAMPLE_ID = "0007_N2_0003"
+DEFAULT_UNIDENTIFIABLE_SAMPLE_ID = "0009_N2_0003"
 RESULT_TIME_SERIES_FILENAME = "result_time_series.h5"
 
 
@@ -41,17 +41,17 @@ def _sample_path_from_id(sample_id: str, setting: str = DEFAULT_SETTING) -> Path
 	)
 
 
-DEFAULT_WELL_BEHAVED_PATH: Path | None = _sample_path_from_id(DEFAULT_WELL_BEHAVED_SAMPLE_ID)
-DEFAULT_VOLATILE_PATH: Path | None = _sample_path_from_id(DEFAULT_VOLATILE_SAMPLE_ID)
+DEFAULT_IDENTIFIABLE_PATH: Path | None = _sample_path_from_id(DEFAULT_IDENTIFIABLE_SAMPLE_ID)
+DEFAULT_UNIDENTIFIABLE_PATH: Path | None = _sample_path_from_id(DEFAULT_UNIDENTIFIABLE_SAMPLE_ID)
 
 DEFAULT_OUTPUT_DIR = PROJECT_ROOT / "results/04_supplemental_figures/method"
 DEFAULT_TIME_LIMIT_SECONDS = 60.0
 PLOT_INTERVAL_SECONDS = 0.24
 REGION_STYLES = {
-	"well-behaved": {
+	"identifiable": {
 		"color": "#4C72B0",
 	},
-	"volatile": {
+	"unidentifiable": {
 		"color": "#C44E52",
 	},
 }
@@ -126,11 +126,11 @@ def _parse_sample_descriptor(sample_path: Path) -> SampleDescriptor:
 
 def _comparison_output_path(
 	output_dir: Path,
-	well_behaved: SampleDescriptor,
-	volatile: SampleDescriptor,
+	identifiable: SampleDescriptor,
+	unidentifiable: SampleDescriptor,
 ) -> Path:
-	comparison_dir = output_dir / f"{well_behaved.model_id}_vs_{volatile.model_id}"
-	filename = f"{well_behaved.sample_id}_vs_{volatile.sample_id}.pdf"
+	comparison_dir = output_dir / f"{identifiable.model_id}_vs_{unidentifiable.model_id}"
+	filename = f"{identifiable.sample_id}_vs_{unidentifiable.sample_id}.pdf"
 	return comparison_dir / filename
 
 
@@ -250,7 +250,7 @@ def plot_min_eigenvalue_trajectories(
 ) -> None:
 	fig, ax = plt.subplots(figsize=(5.5, 3.5))
 
-	for region_key in ("well-behaved", "volatile"):
+	for region_key in ("identifiable", "unidentifiable"):
 		record = records[region_key]
 		style = REGION_STYLES[region_key]
 		ax.plot(
@@ -289,21 +289,21 @@ def main() -> None:
 		description="Plot minimum-eigenvalue trajectories for selected model samples."
 	)
 	parser.add_argument(
-		"--well-behaved-path",
+		"--identifiable-path",
 		type=Path,
-		default=DEFAULT_WELL_BEHAVED_PATH,
+		default=DEFAULT_IDENTIFIABLE_PATH,
 		help=(
 			"Path to a sample result directory, summary.json, or result_time_series.h5 "
-			"for the well-behaved example."
+			"for the identifiable example."
 		),
 	)
 	parser.add_argument(
-		"--volatile-path",
+		"--unidentifiable-path",
 		type=Path,
-		default=DEFAULT_VOLATILE_PATH,
+		default=DEFAULT_UNIDENTIFIABLE_PATH,
 		help=(
 			"Path to a sample result directory, summary.json, or result_time_series.h5 "
-			"for the volatile example."
+			"for the unidentifiable example."
 		),
 	)
 	parser.add_argument(
@@ -328,49 +328,49 @@ def main() -> None:
 	_configure_plot_style()
 	output_dir = args.output_dir.expanduser().resolve()
 	time_limit_seconds = None if args.plot_to_end else args.time_limit
-	well_behaved_path = _resolve_cli_path(
-		args.well_behaved_path,
-		DEFAULT_WELL_BEHAVED_PATH,
-		"--well-behaved-path",
+	identifiable_path = _resolve_cli_path(
+		args.identifiable_path,
+		DEFAULT_IDENTIFIABLE_PATH,
+		"--identifiable-path",
 	)
-	volatile_path = _resolve_cli_path(
-		args.volatile_path,
-		DEFAULT_VOLATILE_PATH,
-		"--volatile-path",
+	unidentifiable_path = _resolve_cli_path(
+		args.unidentifiable_path,
+		DEFAULT_UNIDENTIFIABLE_PATH,
+		"--unidentifiable-path",
 	)
 
-	well_behaved_descriptor = _parse_sample_descriptor(well_behaved_path)
-	volatile_descriptor = _parse_sample_descriptor(volatile_path)
+	identifiable_descriptor = _parse_sample_descriptor(identifiable_path)
+	unidentifiable_descriptor = _parse_sample_descriptor(unidentifiable_path)
 
-	well_behaved_record = _truncate_trajectory(
-		load_trajectory(well_behaved_path),
+	identifiable_record = _truncate_trajectory(
+		load_trajectory(identifiable_path),
 		time_limit_seconds,
 	)
-	well_behaved_record = _sample_trajectory(
-		well_behaved_record,
+	identifiable_record = _sample_trajectory(
+		identifiable_record,
 		PLOT_INTERVAL_SECONDS,
 	)
-	volatile_record = _truncate_trajectory(
-		load_trajectory(volatile_path),
+	unidentifiable_record = _truncate_trajectory(
+		load_trajectory(unidentifiable_path),
 		time_limit_seconds,
 	)
-	volatile_record = _sample_trajectory(
-		volatile_record,
+	unidentifiable_record = _sample_trajectory(
+		unidentifiable_record,
 		PLOT_INTERVAL_SECONDS,
 	)
 
 	print(
-		f"Well-behaved sample: model_{well_behaved_descriptor.model_id}, "
-		f"{well_behaved_descriptor.population}, "
-		f"run {well_behaved_descriptor.run_id}"
+		f"Identifiable sample: model_{identifiable_descriptor.model_id}, "
+		f"{identifiable_descriptor.population}, "
+		f"run {identifiable_descriptor.run_id}"
 	)
-	print(f"  {well_behaved_record.source_path}")
+	print(f"  {identifiable_record.source_path}")
 	print(
-		f"Volatile sample: model_{volatile_descriptor.model_id}, "
-		f"{volatile_descriptor.population}, "
-		f"run {volatile_descriptor.run_id}"
+		f"Unidentifiable sample: model_{unidentifiable_descriptor.model_id}, "
+		f"{unidentifiable_descriptor.population}, "
+		f"run {unidentifiable_descriptor.run_id}"
 	)
-	print(f"  {volatile_record.source_path}")
+	print(f"  {unidentifiable_record.source_path}")
 	if time_limit_seconds is None:
 		print("Time range: full trajectory")
 	else:
@@ -379,15 +379,15 @@ def main() -> None:
 
 	output_path = _comparison_output_path(
 		output_dir,
-		well_behaved_descriptor,
-		volatile_descriptor,
+		identifiable_descriptor,
+		unidentifiable_descriptor,
 	)
 	print(f"Output directory: {output_path.parent}")
 
 	plot_min_eigenvalue_trajectories(
 		{
-			"well-behaved": well_behaved_record,
-			"volatile": volatile_record,
+			"identifiable": identifiable_record,
+			"unidentifiable": unidentifiable_record,
 		},
 		output_path,
 		time_limit_seconds,

@@ -35,7 +35,7 @@ from _common import (
 
 # Adjust this figure size independently.
 FIGSIZE = (6.4, 4.0)
-VOLATILE_KINETICS_DIRS = (
+UNIDENTIFIABLE_KINETICS_DIRS = (
 	("Inertial", "Inertial"),
 	("Overdamped", "OL"),
 )
@@ -188,11 +188,11 @@ def plot_for_setting(setting_dir: Path, records: list[PaperRecord], _args) -> No
 		xscale="log",
 		yscale="log",
 	)
-	for kinetics, kinetics_suffix in VOLATILE_KINETICS_DIRS:
+	for kinetics, kinetics_suffix in UNIDENTIFIABLE_KINETICS_DIRS:
 		bottom_filtered = [record for record in filtered if record.kinetics == kinetics]
 		if not bottom_filtered:
 			print(
-				f"[{setting_dir.name}] No N={MAIN_TEXT_NUM_AGENT} {kinetics} data for volatile min-eigenvalue plot; skipping."
+				f"[{setting_dir.name}] No N={MAIN_TEXT_NUM_AGENT} {kinetics} data for unidentifiable min-eigenvalue plot; skipping."
 			)
 			continue
 		plot_min_eigenvalue_timeseries_panel(

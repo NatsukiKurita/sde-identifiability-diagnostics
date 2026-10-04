@@ -171,7 +171,7 @@ Shared options:
 | Script | What it plots | Default output |
 |--------|----------------|----------------|
 | `01_example_trajectories.py` | A short example trajectory for every simulation model | `results/04_supplemental_figures/method/example_trajectories/` |
-| `00_method.py` | Minimum-eigenvalue trajectories for a well-behaved sample and a volatile sample | `results/04_supplemental_figures/method/` |
+| `00_method.py` | Minimum-eigenvalue trajectories for an identifiable sample and an unidentifiable sample | `results/04_supplemental_figures/method/` |
 
 `00_method.py` reads `results/optimum` from `result_time_series.h5` (or a result directory or `summary.json` that points at it). Its built-in sample paths are under `results/setting_1`. It does not take `--setting`.
 
@@ -190,8 +190,8 @@ Method comparison:
 
 | Option | Description |
 |--------|-------------|
-| `--well-behaved-path PATH` | Result directory, `summary.json`, or `result_time_series.h5` for the well-behaved example |
-| `--volatile-path PATH` | Same, for the volatile example |
+| `--identifiable-path PATH` | Result directory, `summary.json`, or `result_time_series.h5` for the identifiable example |
+| `--unidentifiable-path PATH` | Same, for the unidentifiable example |
 | `--output-dir PATH` | Directory where the figure is written |
 | `--time-limit SECONDS` | Maximum time on the x-axis (default: 60) |
 | `--plot-to-end` | Plot the full trajectory instead of stopping at `--time-limit` |
