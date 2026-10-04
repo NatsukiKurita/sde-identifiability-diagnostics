@@ -31,8 +31,6 @@ function collect_module_params()
     return kinetics, social
 end
 
-# ConfigParser and 00_prepare_toml.py disagree on where `precision` lives, so it is written in
-# both places and both float types are traced.
 function write_configs(setting_root::String, precision::String, kinetics, social)
     model_id = 0
     for (k_name, k_params) in kinetics, (s_name, s_params) in social
@@ -41,7 +39,6 @@ function write_configs(setting_root::String, precision::String, kinetics, social
         model_dir = joinpath(setting_root, "model_$(model_code)")
         mkpath(model_dir)
         config = Dict(
-            "precision" => precision,
             "Simulation" => Dict(
                 "total_simulation_per_model" => 1,
                 "num_agents" => PRECOMPILE_NUM_AGENTS,

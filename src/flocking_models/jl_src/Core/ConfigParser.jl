@@ -27,10 +27,15 @@ module ConfigParser
     function load_simulation_setup(file_path::String)
         config = TOML.parsefile(file_path)
 
-        precision_str = get(config, "precision", "Float32")
-        T = precision_str == "Float32" ? Float32 : Float64
-
         sim_cfg    = config["Simulation"]
+        precision_str = lowercase(string(get(sim_cfg, "precision", "Float64")))
+        T = if precision_str == "float32"
+            Float32
+        elseif precision_str == "float64"
+            Float64
+        else
+            error("Unsupported precision: $(precision_str). Use 'Float32' or 'Float64'.")
+        end
         num_frames = Int(sim_cfg["num_frames"])
         dt         = T(sim_cfg["dt"])
         safe_eps   = T(sim_cfg["safe_eps"])

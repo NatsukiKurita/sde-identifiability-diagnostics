@@ -61,9 +61,9 @@ Later stages use `.venv/bin/python` when `PYTHON` is unset. `run_overall_procedu
 
 ### Full pipeline
 
-Settings are defined by the TOML presets in `src/experiment_configs/parameter_presets/`. Each `setting_*.toml` file becomes one setting named after its file stem (for example `setting_1`). Simulated population sizes are `NUM_AGENTS` in `src/experiment_configs/simulation.py` (currently 2, 4, and 8).
+Settings are defined by the TOML presets in `src/experiment_configs/parameter_presets/`. Each `setting_*.toml` file becomes one setting named after its file stem (for example `setting_1`). Simulated population sizes are `NUM_AGENTS` in `src/experiment_configs/simulation.py` (currently 2 and 4).
 
-After setup, `./run_overall_procedure.sh` runs every analysis stage in order. `--setting` is forwarded only to stages that accept it. Without it, those stages use every setting in `PARAMETER_SETTINGS`. `--overwrite` is forwarded to TOML preparation, simulation, estimation, diagnostics, and example trajectories.
+After setup, `./run_overall_procedure.sh` runs every analysis stage in order. `--setting` is forwarded to simulation, estimation, diagnostics, and the paper figures. Without it, those stages use every setting in `PARAMETER_SETTINGS`. The supplemental figures always use their own defaults; `00_method.py` and `02_tk2020_n4_spaghetti.py` read `setting_1`. `--overwrite` is forwarded to TOML preparation, simulation, estimation, diagnostics, and example trajectories.
 
 ```bash
 ./run_overall_procedure.sh
@@ -83,6 +83,7 @@ After setup, `./run_overall_procedure.sh` runs every analysis stage in order. `-
 | 04 | `scripts/04_figures/fig04_error_evolution.py` | Parameter-precision time series |
 | 05 | `scripts/05_supplemental_figures/01_example_trajectories.py` | Example trajectories |
 | 05 | `scripts/05_supplemental_figures/00_method.py` | Method comparison of minimum-eigenvalue trajectories |
+| 05 | `scripts/05_supplemental_figures/02_tk2020_n4_spaghetti.py` | Minimum-eigenvalue spaghetti charts for TK2020 with N=4 |
 
 `scripts/02_estimation/01_error_evolution.py` is imported by the estimation script. It re-estimates parameters on cumulative post-burn-in prefixes and is not a separate command. `scripts/04_figures/_common.py` holds the shared figure arguments and plotting helpers.
 
@@ -93,12 +94,13 @@ After setup, `./run_overall_procedure.sh` runs every analysis stage in order. `-
 .venv/bin/python scripts/01_simulation/01_run_simulation.py --setting setting_1 --overwrite
 .venv/bin/python scripts/02_estimation/00_run_estimation.py --setting setting_1 --overwrite
 .venv/bin/python scripts/03_diagnostics/00_execute_diagnostics.py --setting setting_1 --overwrite
-.venv/bin/python scripts/04_figures/fig01_min_eigenvalue_timeseries.py --setting setting_1 --num-agents 2 8
-.venv/bin/python scripts/04_figures/fig02_spaghetti.py --setting setting_1 --num-agents 2 8
-.venv/bin/python scripts/04_figures/fig03_min_eigenvector_lollipop.py --setting setting_1 --num-agents 2 8
-.venv/bin/python scripts/04_figures/fig04_error_evolution.py --setting setting_1 --num-agents 2 8
+.venv/bin/python scripts/04_figures/fig01_min_eigenvalue_timeseries.py --setting setting_1
+.venv/bin/python scripts/04_figures/fig02_spaghetti.py --setting setting_1
+.venv/bin/python scripts/04_figures/fig03_min_eigenvector_lollipop.py --setting setting_1
+.venv/bin/python scripts/04_figures/fig04_error_evolution.py --setting setting_1
 .venv/bin/python scripts/05_supplemental_figures/01_example_trajectories.py --overwrite
 .venv/bin/python scripts/05_supplemental_figures/00_method.py
+.venv/bin/python scripts/05_supplemental_figures/02_tk2020_n4_spaghetti.py
 ```
 
 Help for any stage:
@@ -148,7 +150,7 @@ Options match estimation: `--sim_root`, `--setting`, and `--overwrite`.
 
 ### 04 Paper figures
 
-Each figure script reads `results/<setting>/` and writes PDF and PNG files under `results/<setting>/figures/`.
+Each figure script reads `results/<setting>/` and writes PDF and PNG files under `results/<setting>/figures/`. All paper figures use the N=2 samples (`MAIN_TEXT_NUM_AGENT` in `scripts/04_figures/_common.py`).
 
 | Script | Figure | Output directory |
 |--------|--------|------------------|
@@ -163,8 +165,6 @@ Shared options:
 |--------|-------------|
 | `--setting SETTING` | One setting. Default: every `setting_*` directory under the results root |
 | `--results-root PATH` | Results root. Default: `results` |
-| `--num-agents N ...` | Population sizes included in the supplementary panels |
-| `--main-num-agents N ...` | Population sizes for the main-text panels |
 
 ### 05 Supplemental figures
 
@@ -172,6 +172,7 @@ Shared options:
 |--------|----------------|----------------|
 | `01_example_trajectories.py` | A short example trajectory for every simulation model | `results/04_supplemental_figures/method/example_trajectories/` |
 | `00_method.py` | Minimum-eigenvalue trajectories for an identifiable sample and an unidentifiable sample | `results/04_supplemental_figures/method/` |
+| `02_tk2020_n4_spaghetti.py` | Minimum-eigenvalue spaghetti charts for TK2020 with N=4, using the identifiable (slope=1) guide | `results/04_supplemental_figures/tk2020_n4_spaghetti/<setting>/` |
 
 `00_method.py` reads `results/optimum` from `result_time_series.h5` (or a result directory or `summary.json` that points at it). Its built-in sample paths are under `results/setting_1`. It does not take `--setting`.
 
@@ -195,3 +196,11 @@ Method comparison:
 | `--output-dir PATH` | Directory where the figure is written |
 | `--time-limit SECONDS` | Maximum time on the x-axis (default: 60) |
 | `--plot-to-end` | Plot the full trajectory instead of stopping at `--time-limit` |
+
+TK2020 N=4 spaghetti:
+
+| Option | Description |
+|--------|-------------|
+| `--setting SETTING` | Setting to read (default: `setting_1`) |
+| `--results-root PATH` | Results root. Default: `results` |
+| `--output-dir PATH` | Output root; figures go under `<output-dir>/<setting>/` |

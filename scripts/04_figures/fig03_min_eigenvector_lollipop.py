@@ -69,14 +69,11 @@ def _eigenvector_rows(records: list[PaperRecord], model: str) -> list[dict[str, 
 		for parameter_idx, (parameter, component) in enumerate(zip(parameter_mapping, min_eigenvector)):
 			if not np.isfinite(component):
 				continue
-			component_value = float(component)
-			if model == "TK2020" and record.kinetics == "Overdamped":
-				component_value *= -1.0
 			rows.append(
 				{
 					"Parameter": str(parameter),
 					"ParameterIndex": int(parameter_idx),
-					"Component": component_value,
+					"Component": float(component),
 					"Dynamics": KINETICS_LABELS.get(record.kinetics, record.kinetics),
 				}
 			)

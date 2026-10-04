@@ -91,8 +91,8 @@ def _model_label_from_ledger(setting_dir: Path, model_id: str) -> str:
 def _short_model_label(combo_key: str) -> str:
 	parts = combo_key.split("-")
 	if len(parts) >= 2:
-		kinetics = parts[0]
-		social = parts[1].replace("Soc_", "")
+		kinetics = parts[0].removeprefix("Dynamics_")
+		social = parts[1].removeprefix("Soc_")
 		return f"{kinetics} / {social}"
 	return combo_key
 

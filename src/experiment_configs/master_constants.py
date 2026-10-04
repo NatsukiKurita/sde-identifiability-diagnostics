@@ -2,6 +2,7 @@ from dataclasses import dataclass
 
 @dataclass(frozen=True)
 class MasterConstants:
+    SAFE_EPS_32 = 1e-6
     SAFE_EPS_64 = 1e-14
     ABSOLUTE_VELOCITY = 0.05
     GROUND_TRUTH_PRECISION = "Float64"

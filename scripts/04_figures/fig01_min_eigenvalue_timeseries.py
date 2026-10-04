@@ -35,11 +35,18 @@ from _common import (
 
 # Adjust this figure size independently.
 FIGSIZE = (6.4, 4.0)
-UNIDENTIFIABLE_KINETICS_DIRS = (
-	("Inertial", "Inertial"),
-	("Overdamped", "OL"),
+INSET_START_SECONDS = 10.0
+# (kinetics, ylim) per inset, drawn left to right.
+BOTTOM_INSET_YLIMS = {
+	"TK2020": (
+		("Inertial", (-6e-8, 6e-8)),
+		("Overdamped", (-1.5e-9, 1.5e-9)),
+	),
+}
+INSET_BOUNDS = (
+	(0.12, 0.15, 0.38, 0.5),
+	(0.6, 0.15, 0.38, 0.5),
 )
-
 
 def _min_eigenvalue_plot_series(
 	records: list[PaperRecord],
@@ -62,6 +69,27 @@ def _min_eigenvalue_plot_series(
 	return downsample_min_eigenvalue_series(*series)
 
 
+def _add_zoom_insets(
+	ax,
+	plotted_lines: list[tuple[str, np.ndarray, np.ndarray, dict]],
+	inset_specs: tuple[tuple[str, tuple[float, float]], ...],
+) -> None:
+	right = ax.get_xlim()[1]
+	for bounds, (kinetics, ylim) in zip(INSET_BOUNDS, inset_specs):
+		inset = ax.inset_axes(bounds)
+		for line_kinetics, times, values, line_kwargs in plotted_lines:
+			if line_kinetics == kinetics:
+				inset.plot(times, values, **line_kwargs)
+		inset.set_xlim(INSET_START_SECONDS, right)
+		inset.set_ylim(ylim)
+		inset.ticklabel_format(axis="y", style="sci", scilimits=(0, 0))
+		inset.tick_params(labelsize=7)
+		inset.yaxis.get_offset_text().set_fontsize(7)
+		inset.axhline(0.0, color="#999999", linewidth=0.6, zorder=0)
+		inset.grid(True, linestyle=DASHED_LINESTYLE, alpha=0.25)
+		inset.set_title(kinetics, fontsize=8)
+
+
 def plot_min_eigenvalue_timeseries_panel(
 	filtered: list[PaperRecord],
 	group_order: list[str],
@@ -69,6 +97,7 @@ def plot_min_eigenvalue_timeseries_panel(
 	*,
 	xscale: str,
 	yscale: str,
+	inset_specs: tuple[tuple[str, tuple[float, float]], ...] | None = None,
 ) -> None:
 	kinetics_order = ordered_kinetics_from_set({record.kinetics for record in filtered})
 	palette = model_palette(group_order)
@@ -79,6 +108,7 @@ def plot_min_eigenvalue_timeseries_panel(
 	x_values: list[np.ndarray] = []
 	y_values: list[np.ndarray] = []
 	recoveries: list[tuple[float, float, tuple[float, float, float]]] = []
+	plotted_lines: list[tuple[str, np.ndarray, np.ndarray, dict]] = []
 	for group in group_order:
 		for kinetics in kinetics_order:
 			cell = [
@@ -120,14 +150,14 @@ def plot_min_eigenvalue_timeseries_panel(
 			if group == "TK2020" and kinetics == "Inertial":
 				linewidth = 1.15
 				alpha = 0.75
-			ax.plot(
-				times,
-				values,
+			line_kwargs = dict(
 				color=palette.get(group, "#777777"),
 				linestyle=linestyle,
 				linewidth=linewidth,
 				alpha=alpha,
 			)
+			ax.plot(times, values, **line_kwargs)
+			plotted_lines.append((kinetics, times, values, line_kwargs))
 
 	if not present_groups:
 		print(f"[{output_path.parent.parent.name}] No minimum-eigenvalue lines to plot; skipping.")
@@ -157,9 +187,11 @@ def plot_min_eigenvalue_timeseries_panel(
 	if xscale == "log" or yscale == "log":
 		add_slope_one_guide(ax)
 	ax.set_xlabel("Time (s)")
-	ax.set_ylabel(r"$\lambda_{\min}$")
+	ax.set_ylabel(r"$\lambda^{\min}$")
 	ax.grid(True, which="both", linestyle=DASHED_LINESTYLE, alpha=0.25)
 	sns.despine(ax=ax)
+	if inset_specs is not None:
+		_add_zoom_insets(ax, plotted_lines, inset_specs)
 
 	add_split_line_legends(
 		fig,
@@ -188,19 +220,20 @@ def plot_for_setting(setting_dir: Path, records: list[PaperRecord], _args) -> No
 		xscale="log",
 		yscale="log",
 	)
-	for kinetics, kinetics_suffix in UNIDENTIFIABLE_KINETICS_DIRS:
-		bottom_filtered = [record for record in filtered if record.kinetics == kinetics]
+	for group in MIN_EIGENVALUE_BOTTOM_MODELS:
+		bottom_filtered = [record for record in filtered if record.group == group]
 		if not bottom_filtered:
 			print(
-				f"[{setting_dir.name}] No N={MAIN_TEXT_NUM_AGENT} {kinetics} data for unidentifiable min-eigenvalue plot; skipping."
+				f"[{setting_dir.name}] No N={MAIN_TEXT_NUM_AGENT} {group} data for unidentifiable min-eigenvalue plot; skipping."
 			)
 			continue
 		plot_min_eigenvalue_timeseries_panel(
 			bottom_filtered,
-			MIN_EIGENVALUE_BOTTOM_MODELS,
-			output_dir / f"min_eigenvalue_timeseries_bottom_{kinetics_suffix}.pdf",
+			[group],
+			output_dir / f"min_eigenvalue_timeseries_bottom_{group}.pdf",
 			xscale="linear",
 			yscale="linear",
+			inset_specs=BOTTOM_INSET_YLIMS.get(group),
 		)
 
 

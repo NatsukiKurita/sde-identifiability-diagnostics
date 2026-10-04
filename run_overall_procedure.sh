@@ -30,11 +30,13 @@ Runs every stage after environment setup, in order:
       scripts/04_figures/fig04_error_evolution.py
   05  scripts/05_supplemental_figures/01_example_trajectories.py
       scripts/05_supplemental_figures/00_method.py
+      scripts/05_supplemental_figures/02_tk2020_n4_spaghetti.py
 
 --setting limits stages that accept it (simulation, estimation, diagnostics,
 and paper figures). Omitted means every setting in PARAMETER_SETTINGS.
-Example-trajectory and method figures use those scripts' own defaults.
-The method figure reads its built-in sample paths under results/setting_1.
+Supplemental figures (example trajectories, method comparison, TK2020 N=4
+spaghetti) use those scripts' own defaults. The method and TK2020 N=4
+figures read results/setting_1.
 
 --overwrite is forwarded to TOML preparation, simulation, estimation,
 diagnostics, and example trajectories.
@@ -153,5 +155,8 @@ run_py "05 supplemental: example trajectories" \
 
 run_py "05 supplemental: method comparison" \
 	scripts/05_supplemental_figures/00_method.py
+
+run_py "05 supplemental: TK2020 N=4 spaghetti" \
+	scripts/05_supplemental_figures/02_tk2020_n4_spaghetti.py
 
 echo "==> Finished overall procedure."

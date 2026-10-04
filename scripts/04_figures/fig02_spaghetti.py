@@ -44,10 +44,9 @@ def plot_for_setting(setting_dir: Path, records: list[PaperRecord], _args) -> No
 			if not cell:
 				print(f"[{setting_dir.name}] No {group} {kinetics} samples; skipping.")
 				continue
-			safe_kinetics = kinetics.replace("Overdamped", "OL")
 			plot_spaghetti_min_eigenvalue(
 				cell,
-				output_dir / f"spaghetti_{group}_{safe_kinetics}.pdf",
+				output_dir / f"spaghetti_{group}_{kinetics}.pdf",
 				figsize=figsize,
 				color=palette[group],
 				title=f"{group} ({kinetics})",

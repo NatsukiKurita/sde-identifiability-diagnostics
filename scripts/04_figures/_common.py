@@ -19,7 +19,6 @@ from matplotlib.lines import Line2D
 import numpy as np
 import seaborn as sns
 import toml
-from src.experiment_configs.simulation import SocialSimConfig
 from src.figure_config import set_paper_style
 from src.QMLE.builder import extract_params_from_toml
 from src.paths import DATA_ROOT, RESULTS_ROOT
@@ -175,6 +174,19 @@ def add_slope_one_guide(
 	_draw_axis_guide(ax, x_values, y_values, "slope=1", label_x, label_y)
 
 
+def _shift_artists_down(ax: plt.Axes, lines, texts, axes_fraction: float) -> None:
+	data_to_axes = ax.transScale + ax.transLimits
+	axes_to_data = data_to_axes.inverted()
+	for line in lines:
+		xy = data_to_axes.transform(np.column_stack(line.get_data()))
+		xy[:, 1] -= axes_fraction
+		shifted = axes_to_data.transform(xy)
+		line.set_data(shifted[:, 0], shifted[:, 1])
+	for text in texts:
+		x, y = data_to_axes.transform(text.get_position())
+		text.set_position(axes_to_data.transform((x, y - axes_fraction)))
+
+
 def add_sqrt_x_log_x_guide(
 	ax: plt.Axes,
 	*,
@@ -272,15 +284,10 @@ def add_split_line_legends(
 		)
 
 
-DEFAULT_NUM_AGENTS = list(SocialSimConfig.NUM_AGENTS)
-MAIN_TEXT_NUM_AGENTS = [2]
 MAIN_TEXT_NUM_AGENT = 2
 EIGENVECTOR_MODELS = ["KR2021", "TK2020"]
 MIN_EIGENVALUE_TOP_MODELS = ["Null", "G2012", "KV"]
 MIN_EIGENVALUE_BOTTOM_MODELS = ["KR2021", "TK2020"]
-PARAMETER_ACCURACY_MODELS = ["Null", "G2012", "KV"]
-PARAMETER_ACCURACY_KINETICS = "Inertial"
-ERROR_PLOT_KINETICS = "Overdamped"
 SPECIAL_MIN_EIGENVALUE_SERIES = {
 	("KR2021", "Inertial"): "results_0006_N2_0020",
 }
@@ -295,6 +302,8 @@ SPAGHETTI_SYMLOG_LINSCALE_Y = 0.7
 SPAGHETTI_GUIDE_X_START = 5.0
 SPAGHETTI_GUIDE_X_END = 100.0
 SPAGHETTI_GUIDE_Y_TOP_DIVISOR = 1.5
+# Fraction of the visible axis height by which the slope=1 guide is shifted down.
+SPAGHETTI_GUIDE_AXES_DOWN_SHIFT = 0.2
 DASHED_LINESTYLE = (0, (2.0, 0.8))
 KINETICS_PLOT_LINESTYLES = {
 	**KINETICS_LINESTYLES,
@@ -337,8 +346,8 @@ def _configure_plot_style() -> None:
 def _short_model_name(combo_key: str) -> str:
 	parts = combo_key.split("-")
 	if len(parts) >= 2:
-		kinetics = parts[0]
-		social = parts[1].replace("Soc_", "")
+		kinetics = parts[0].removeprefix("Dynamics_")
+		social = parts[1].removeprefix("Soc_")
 		return f"{kinetics}/{social}"
 	return combo_key
 
@@ -667,12 +676,16 @@ def style_min_eigenvalue_axis(
 		"x_end": SPAGHETTI_GUIDE_X_END,
 		"y_top_divisor": SPAGHETTI_GUIDE_Y_TOP_DIVISOR,
 	}
+	ax.set_xlim(ax.get_xlim())
+	ax.set_ylim(ax.get_ylim())
 	if identifiable:
+		n_lines, n_texts = len(ax.lines), len(ax.texts)
 		add_slope_one_guide(ax, **guide_kwargs)
+		_shift_artists_down(ax, ax.lines[n_lines:], ax.texts[n_texts:], SPAGHETTI_GUIDE_AXES_DOWN_SHIFT)
 	else:
 		add_sqrt_x_log_x_guide(ax, **guide_kwargs)
 	ax.set_xlabel("Time (s)")
-	ax.set_ylabel(r"$\lambda^{\mathrm{min}}_t$ (Symlog-scaled)")
+	ax.set_ylabel(r"$\lambda^{\mathrm{min}}$ (Symlog-scaled)")
 	ax.grid(True, which="both", linestyle=DASHED_LINESTYLE, alpha=0.25)
 	sns.despine(ax=ax)
 
@@ -684,7 +697,7 @@ def plot_spaghetti_min_eigenvalue(
 	figsize: tuple[float, float],
 	color,
 	title: str | None = None,
-	line_alpha: float = 0.2,
+	line_alpha: float = 0.3,
 	linewidth: float = 0.3,
 ) -> None:
 	fig, ax = plt.subplots(figsize=figsize)
@@ -747,20 +760,6 @@ def add_common_arguments(parser: argparse.ArgumentParser) -> argparse.ArgumentPa
 		help="Root directory containing setting_* result folders.",
 	)
 	parser.add_argument("--setting", type=str, default=None, help="Process only this setting.")
-	parser.add_argument(
-		"--num-agents",
-		type=int,
-		nargs="+",
-		default=DEFAULT_NUM_AGENTS,
-		help="Population sizes to include in supplementary panels.",
-	)
-	parser.add_argument(
-		"--main-num-agents",
-		type=int,
-		nargs="+",
-		default=MAIN_TEXT_NUM_AGENTS,
-		help="Population sizes for main-text panels.",
-	)
 	return parser
 
 
