@@ -129,8 +129,8 @@ Help for any stage:
 
 `00_run_estimation.py` runs multistart estimation. It does not compute the Hessian. Each sample directory receives:
 
-- `summary.json` — optimization summary and parameter estimates
-- `parameter_estimates.json` — cumulative parameter estimates at fixed time intervals
+- `summary.json` — optimization summary (`mean_loss_*` and `mean_grad_*` are averaged over time steps and agents) and parameter estimates
+- `parameter_evolution.json` — cumulative parameter estimates at fixed time intervals
 
 | Option | Description |
 |--------|-------------|
@@ -142,9 +142,7 @@ Help for any stage:
 
 `00_execute_diagnostics.py` evaluates the saved optimum. It updates `summary.json` with the minimum and maximum eigenvalues and writes:
 
-- `results.h5` — Hessian, eigenpairs, and the optimum trend
-- `eval_trend_at_opt.json` — trend and evaluation metrics at the optimum
-- `eval_trend_at_truth.json` — the same series evaluated at the true parameters
+- `result_time_series.h5` — shared `time_seconds` / `time_indices`, plus `hessians` (cumulative, dimensionless) and `min_eigenvalues` time series under `results/optimum` and `results/truth`
 
 Options match estimation: `--sim_root`, `--setting`, and `--overwrite`.
 
@@ -175,7 +173,7 @@ Shared options:
 | `01_example_trajectories.py` | A short example trajectory for every simulation model | `results/04_supplemental_figures/method/example_trajectories/` |
 | `00_method.py` | Minimum-eigenvalue trajectories for a well-behaved sample and a volatile sample | `results/04_supplemental_figures/method/` |
 
-`00_method.py` reads `eval_trend_at_opt.json` (or a result directory or `summary.json` that points at it). Its built-in sample paths are under `results/setting_1`. It does not take `--setting`.
+`00_method.py` reads `results/optimum` from `result_time_series.h5` (or a result directory or `summary.json` that points at it). Its built-in sample paths are under `results/setting_1`. It does not take `--setting`.
 
 Example trajectories:
 
@@ -192,7 +190,7 @@ Method comparison:
 
 | Option | Description |
 |--------|-------------|
-| `--well-behaved-path PATH` | Result directory, `summary.json`, or `eval_trend_at_opt.json` for the well-behaved example |
+| `--well-behaved-path PATH` | Result directory, `summary.json`, or `result_time_series.h5` for the well-behaved example |
 | `--volatile-path PATH` | Same, for the volatile example |
 | `--output-dir PATH` | Directory where the figure is written |
 | `--time-limit SECONDS` | Maximum time on the x-axis (default: 60) |

@@ -13,6 +13,7 @@ from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
+import h5py
 import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
 import numpy as np
@@ -24,6 +25,7 @@ from src.QMLE.builder import extract_params_from_toml
 from src.paths import DATA_ROOT, RESULTS_ROOT
 
 PARAMETER_EPS = 1e-12
+RESULT_TIME_SERIES_FILENAME = "result_time_series.h5"
 KINETICS_MARKERS = {
 	"Overdamped": "o",
 	"Inertial": "x",
@@ -57,7 +59,6 @@ class PaperRecord:
 	kinetics: str
 	panel: int | str
 	max_abs_log_parameter_error: float
-	burn_in_start_index: int
 	result_dir: Path | None = None
 
 
@@ -422,26 +423,27 @@ def _load_truth_params(setting_name: str, model_id: str) -> dict | None:
 	return extract_params_from_toml(config_toml)
 
 
-def _load_sample_record(summary_path: Path, ledger_inverse: dict[int, str]) -> SampleRecord | None:
-	if (summary_path.parent / "skip_message.json").is_file():
-		return None
+def read_time_series(h5_path: Path, label: str = "optimum") -> tuple[list[float], list[float]]:
+	with h5py.File(h5_path, "r") as f:
+		time_seconds = [float(x) for x in f["time_seconds"][:]]
+		min_eigenvalues = [float(x) for x in f[f"results/{label}/min_eigenvalues"][:]]
+	return time_seconds, min_eigenvalues
 
+
+def _load_sample_record(summary_path: Path, ledger_inverse: dict[int, str]) -> SampleRecord | None:
 	parsed = _parse_result_paths(summary_path)
 	if parsed is None:
 		return None
 	setting_name, model_id, num_agents, sample_name = parsed
 
-	eval_path = summary_path.parent / "eval_trend_at_opt.json"
-	if not eval_path.is_file():
+	time_series_path = summary_path.parent / RESULT_TIME_SERIES_FILENAME
+	if not time_series_path.is_file():
 		return None
 
 	with open(summary_path, "r") as f:
 		summary_payload = json.load(f)
-	with open(eval_path, "r") as f:
-		eval_payload = json.load(f)
 
-	time_seconds = [float(x) for x in eval_payload.get("time_seconds", [])]
-	min_eigenvalues = [float(x) for x in eval_payload.get("min_eigenvalues", [])]
+	time_seconds, min_eigenvalues = read_time_series(time_series_path)
 	if len(time_seconds) != len(min_eigenvalues) or not time_seconds:
 		return None
 
@@ -501,7 +503,6 @@ def collect_paper_records(setting_dir: Path) -> list[PaperRecord]:
 		if max_abs_log_error is None:
 			continue
 
-		eval_payload = read_json(summary_path.parent / "eval_trend_at_opt.json")
 		kinetics, social_module = _split_model_label(base_record.model_label)
 		records.append(
 			PaperRecord(
@@ -510,7 +511,6 @@ def collect_paper_records(setting_dir: Path) -> list[PaperRecord]:
 				kinetics=kinetics,
 				panel=base_record.num_agents,
 				max_abs_log_parameter_error=max_abs_log_error,
-				burn_in_start_index=max(0, int(eval_payload.get("evaluation", {}).get("burn_in_start_index", 0))),
 				result_dir=summary_path.parent,
 			)
 		)

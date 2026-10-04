@@ -22,6 +22,7 @@ from _common import (
 	MAIN_TEXT_NUM_AGENT,
 	KINETICS_LABELS,
 	PARAMETER_DISPLAY_LABELS,
+	RESULT_TIME_SERIES_FILENAME,
 	PaperRecord,
 	read_json,
 	run_for_settings,
@@ -53,17 +54,18 @@ def _eigenvector_rows(records: list[PaperRecord], model: str) -> list[dict[str, 
 			representative_records.append(candidates[0])
 
 	for record in representative_records:
-		results_h5_path = record.result_dir / "results.h5"
+		results_h5_path = record.result_dir / RESULT_TIME_SERIES_FILENAME
 		summary_path = record.result_dir / "summary.json"
 		if not results_h5_path.is_file() or not summary_path.is_file():
 			continue
 		summary_payload = read_json(summary_path)
-		parameter_mapping = summary_payload.get("hessian_parameter_mapping", [])
+		parameter_mapping = summary_payload.get("parameter_mapping", [])
 		with h5py.File(results_h5_path, "r") as f:
-			eigenvectors = np.asarray(f["eigenvectors"][:], dtype=float)
-		if eigenvectors.ndim != 2 or eigenvectors.shape[0] != len(parameter_mapping):
+			final_hessian = np.asarray(f["results/optimum/hessians"][-1], dtype=float)
+		if final_hessian.ndim != 2 or final_hessian.shape[0] != len(parameter_mapping):
 			continue
-		min_eigenvector = eigenvectors[:, -1]
+		_, eigenvectors = np.linalg.eigh(final_hessian)
+		min_eigenvector = eigenvectors[:, 0]
 		for parameter_idx, (parameter, component) in enumerate(zip(parameter_mapping, min_eigenvector)):
 			if not np.isfinite(component):
 				continue

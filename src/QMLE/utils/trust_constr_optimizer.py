@@ -54,37 +54,15 @@ def trust_constr_optimizer(
     initial_params_processed = _normalize_initial_params(initial_params)
     leaves = jax.tree.leaves(initial_params_processed)
 
-    batch_size_candidates = [
-        int(leaf.shape[0])
-        for leaf in leaves
-        if leaf.ndim > 0 and int(leaf.shape[0]) > 0
-    ]
-    if batch_size_candidates:
-        batch_size = batch_size_candidates[0]
-        if any(size != batch_size for size in batch_size_candidates):
-            raise ValueError("Inconsistent leading batch dimension in initial_params.")
-    else:
-        # All leaves are empty because every parameter is inactive.
-        batch_size = 1
+    batch_size_candidates = [int(leaf.shape[0]) for leaf in leaves]
+    batch_size = batch_size_candidates[0]
+    if any(size != batch_size for size in batch_size_candidates):
+        raise ValueError("Inconsistent leading batch dimension in initial_params.")
 
     # バッチの1つ目の要素を取り出し、PyTree構造と平坦化/復元関数を取得
-    single_init = jax.tree.map(
-        lambda x: x[0] if x.ndim > 0 and int(x.shape[0]) > 0 else x,
-        initial_params_processed,
-    )
+    single_init = jax.tree.map(lambda x: x[0], initial_params_processed)
     flat_single_init, unflatten_fn = ravel_pytree(single_init)
     opt_dtype = flat_single_init.dtype
-
-    if int(flat_single_init.size) == 0:
-        best_meta = {
-            "message": "No active parameters to optimize.",
-            "success": True,
-            "status": 0,
-        }
-        best_loss = float(loss_fn_fixed(single_init))
-        if return_metadata:
-            return single_init, best_loss, 0, best_meta
-        return single_init, best_loss, 0
 
     # 境界のPyTreeも同様に平坦化してSciPy用のBoundsオブジェクトを作成
     flat_lower, _ = ravel_pytree(lower_bounds)
@@ -147,10 +125,7 @@ def trust_constr_optimizer(
 
     for i in range(batch_size):
         # i番目の初期パラメータを抽出して平坦化
-        x0_tree = jax.tree.map(
-            lambda x: x[i] if x.ndim > 0 and int(x.shape[0]) > i else x,
-            initial_params_processed,
-        )
+        x0_tree = jax.tree.map(lambda x: x[i], initial_params_processed)
         x0_flat, _ = ravel_pytree(x0_tree)
         x0_flat = np.clip(np.array(x0_flat, dtype=np.float64), flat_lower_np, flat_upper_np)
 

@@ -7,7 +7,7 @@ and parameter estimates. Hessian diagnostics are computed separately.
 
 Outputs (per model / agent count / simulation):
 - ``summary.json`` — optimization summary and parameter estimates
-- ``parameter_estimates.json`` — cumulative parameter estimates sampled at fixed time intervals
+- ``parameter_evolution.json`` — cumulative parameter estimates sampled at fixed time intervals
 """
 
 import argparse
@@ -39,14 +39,14 @@ EstimationConfig.configure_jax_precision()
 DEFAULT_SIMDATA_ROOT = DATA_ROOT / "simulation"
 
 
-def _compute_loss_and_grad_norm(loss_fn, params):
+def _compute_mean_loss_and_grad(loss_fn, params, normalizer: float):
 	loss_value, grad_tree = jax.value_and_grad(loss_fn)(params)
 	grad_flat, _ = ravel_pytree(grad_tree)
 	grad_norm = float(jnp.linalg.norm(grad_flat))
-	return float(loss_value), grad_norm
+	return float(loss_value) / normalizer, grad_norm / normalizer
 
 
-def _evaluate_multistart_reference(loss_fn, batched_params):
+def _evaluate_multistart_reference(loss_fn, batched_params, normalizer: float):
 	leaves = jax.tree_util.tree_leaves(batched_params)
 	if not leaves:
 		raise ValueError("batched_params is empty")
@@ -54,26 +54,26 @@ def _evaluate_multistart_reference(loss_fn, batched_params):
 	first_leaf = leaves[0]
 
 	if first_leaf.ndim == 0:
-		loss_value, grad_norm = _compute_loss_and_grad_norm(loss_fn, batched_params)
+		mean_loss, mean_grad = _compute_mean_loss_and_grad(loss_fn, batched_params, normalizer)
 		return {
 			"best_start_index": 0,
-			"loss_start": float(loss_value),
-			"grad_norm_start": float(grad_norm),
+			"mean_loss_start": float(mean_loss),
+			"mean_grad_start": float(mean_grad),
 			"best_start_params": batched_params,
 		}
 
 	batch_size = int(first_leaf.shape[0])
 	best_idx = None
 	best_loss = np.inf
-	best_grad_norm = np.inf
+	best_grad = np.inf
 	best_params = None
 
 	for idx in range(batch_size):
 		single_params = jax.tree_util.tree_map(lambda x: x[idx], batched_params)
-		loss_value, grad_norm = _compute_loss_and_grad_norm(loss_fn, single_params)
-		if loss_value < best_loss:
-			best_loss = loss_value
-			best_grad_norm = grad_norm
+		mean_loss, mean_grad = _compute_mean_loss_and_grad(loss_fn, single_params, normalizer)
+		if mean_loss < best_loss:
+			best_loss = mean_loss
+			best_grad = mean_grad
 			best_idx = idx
 			best_params = single_params
 
@@ -82,29 +82,10 @@ def _evaluate_multistart_reference(loss_fn, batched_params):
 
 	return {
 		"best_start_index": int(best_idx),
-		"loss_start": float(best_loss),
-		"grad_norm_start": float(best_grad_norm),
+		"mean_loss_start": float(best_loss),
+		"mean_grad_start": float(best_grad),
 		"best_start_params": best_params,
 	}
-
-
-def _split_params_by_activity(params_tree, activity_tree):
-	"""Split params tree into active and nonactive subtrees according to boolean mask tree."""
-	if isinstance(activity_tree, dict):
-		active_out = {}
-		nonactive_out = {}
-		for key in activity_tree:
-			a_child, n_child = _split_params_by_activity(params_tree[key], activity_tree[key])
-			if a_child is not None:
-				active_out[key] = a_child
-			if n_child is not None:
-				nonactive_out[key] = n_child
-		return (active_out if active_out else None), (nonactive_out if nonactive_out else None)
-
-	is_active = bool(np.asarray(activity_tree))
-	if is_active:
-		return params_tree, None
-	return None, params_tree
 
 
 def _serialize_param_tree(tree):
@@ -160,9 +141,9 @@ def run_estimation(
 		/ f"results_{model_code}_{agent_count}_{sim_code}"
 	)
 	json_filepath = result_dir / "summary.json"
-	parameter_estimates_filepath = result_dir / "parameter_estimates.json"
+	parameter_evolution_filepath = result_dir / "parameter_evolution.json"
 
-	existing_result = json_filepath.exists() and parameter_estimates_filepath.exists()
+	existing_result = json_filepath.exists() and parameter_evolution_filepath.exists()
 	if existing_result and overwrite:
 		print(f"Results already exist for Model: {model_code}, Simulation: {sim_code}. Overwriting existing results.")
 	elif existing_result:
@@ -225,54 +206,12 @@ def run_estimation(
 	def total_loss_fn(params, states, states_next, aux_data):
 		return jnp.sum(jax.vmap(loss_fn_stepwise, in_axes=(None, 0, 0, aux_axes))(params, states, states_next, aux_data))
 
-	loss_fn_fixed = functools.partial(
-		total_loss_fn,
-		states=states,
-		states_next=states_next,
-		aux_data=aux_data,
-	)
-
-	print("Detecting structurally inactive parameters via JAX computational graph...")
-
-	key = jax.random.PRNGKey(42)
-
-	def add_dummy_noise(x):
-		return x + jax.random.normal(key, x.shape) * 1e-3
-
-	noisy_init_params = jax.tree_util.tree_map(add_dummy_noise, base_init_params)
-	grad_tree = jax.jit(jax.grad(loss_fn_fixed))(noisy_init_params)
-
-	is_active_tree = jax.tree_util.tree_map(lambda g: jnp.any(jnp.abs(g) > 1e-12), grad_tree)
-
-	flat_active_flags, _ = ravel_pytree(is_active_tree)
-	temp_mapping = []
-	for path, leaf in jax.tree_util.tree_leaves_with_path(base_init_params):
-		path_str = ".".join([str(p.key) for p in path])
-		temp_mapping.extend([path_str] * leaf.size if leaf.size > 1 else [path_str])
-
-	ignored_params = [name for name, active in zip(temp_mapping, flat_active_flags) if not active]
-	if ignored_params:
-		print(f"-> Automatically IGNORED {len(ignored_params)} inactive parameters: {set(ignored_params)}")
-	else:
-		print("-> All parameters are ACTIVE.")
-
-	def filter_active(p, is_active):
-		return p if is_active else jnp.empty(0)
-
-	active_opt_init_params = jax.tree_util.tree_map(filter_active, optimizer_initial_params, is_active_tree)
-	active_lower = jax.tree_util.tree_map(filter_active, lower_bounds, is_active_tree)
-	active_upper = jax.tree_util.tree_map(filter_active, upper_bounds, is_active_tree)
-
-	fixed_params = base_init_params
-
 	dt_value = float(EstimationConfig.as_float_array(config_toml["Simulation"]["dt"]))
-	parameter_estimates, final_estimate = estimate_parameter_trend(
+	parameter_evolution, final_estimate = estimate_parameter_trend(
 		loss_fn_stepwise=loss_fn_stepwise,
-		fixed_params=fixed_params,
-		is_active_tree=is_active_tree,
-		active_initial_params=active_opt_init_params,
-		active_lower=active_lower,
-		active_upper=active_upper,
+		initial_params=optimizer_initial_params,
+		lower_bounds=lower_bounds,
+		upper_bounds=upper_bounds,
 		states=states,
 		states_next=states_next,
 		aux_data=aux_data,
@@ -280,8 +219,7 @@ def run_estimation(
 		dt=dt_value,
 		interval_seconds=float(EstimationConfig.PARAMETER_ESTIMATION_INTERVAL),
 	)
-	best_active_params = final_estimate["best_active_params"]
-	best_loss = final_estimate["best_loss"]
+	best_params = final_estimate["best_params"]
 	presearch_iters = final_estimate["presearch_iterations"]
 	pre_meta = final_estimate["presearch_meta"]
 	iters = final_estimate["iterations"]
@@ -294,23 +232,7 @@ def run_estimation(
 	)
 	message = str(meta.get("message", ""))
 
-	best_params = jax.tree_util.tree_map(
-		lambda fixed, active, mask: active if mask else fixed,
-		fixed_params,
-		best_active_params,
-		is_active_tree,
-	)
-
-	print("Best Loss:", best_loss)
-	print("Iterations to Converge:", iters)
-
-	active_best_params_tree, nonactive_best_params_tree = _split_params_by_activity(best_params, is_active_tree)
-	if active_best_params_tree is None:
-		active_best_params_tree = {}
-	if nonactive_best_params_tree is None:
-		nonactive_best_params_tree = {}
-
-	burn_in_frames = int(parameter_estimates["burn_in_frames"])
+	burn_in_frames = int(parameter_evolution["burn_in_frames"])
 	analysis_states = {key: value[burn_in_frames:] for key, value in states.items()}
 	analysis_states_next = {key: value[burn_in_frames:] for key, value in states_next.items()}
 	analysis_aux_data = {
@@ -324,44 +246,38 @@ def run_estimation(
 		aux_data=analysis_aux_data,
 	)
 	analysis_num_steps = int(analysis_states["positions"].shape[0])
-
-	init_reference = _evaluate_multistart_reference(analysis_loss_fn, optimizer_initial_params)
-	loss_start = init_reference["loss_start"]
-	grad_norm_start = init_reference["grad_norm_start"]
-	loss_opt, grad_norm_opt = _compute_loss_and_grad_norm(analysis_loss_fn, best_params)
 	normalizer = float(N * analysis_num_steps)
-	loss_start_norm = float(loss_start / normalizer)
-	loss_opt_norm = float(loss_opt / normalizer)
 
-	param_mapping = _build_param_mapping(active_best_params_tree)
-	nonactive_param_mapping = _build_param_mapping(nonactive_best_params_tree)
+	init_reference = _evaluate_multistart_reference(analysis_loss_fn, optimizer_initial_params, normalizer)
+	mean_loss_start = init_reference["mean_loss_start"]
+	mean_grad_start = init_reference["mean_grad_start"]
+	mean_loss_opt, mean_grad_opt = _compute_mean_loss_and_grad(analysis_loss_fn, best_params, normalizer)
 
-	best_params_json = _serialize_param_tree(active_best_params_tree)
-	nonactive_params_json = _serialize_param_tree(nonactive_best_params_tree)
-	parameter_estimates["parameter_mapping"] = param_mapping
+	print("Mean Loss:", mean_loss_opt)
+	print("Iterations to Converge:", iters)
+
+	param_mapping = _build_param_mapping(best_params)
+	parameter_evolution["parameter_mapping"] = param_mapping
 
 	json_data = {
 		"summary": {
-			"best_loss": float(best_loss),
 			"presearch_iterations": int(presearch_iters),
 			"iterations": int(iters),
 			"message": message,
-			"loss_start_norm": float(loss_start_norm),
-			"loss_opt_norm": float(loss_opt_norm),
-			"grad_norm_start": float(grad_norm_start),
-			"grad_norm_opt": float(grad_norm_opt),
+			"mean_loss_start": float(mean_loss_start),
+			"mean_loss_opt": float(mean_loss_opt),
+			"mean_grad_start": float(mean_grad_start),
+			"mean_grad_opt": float(mean_grad_opt),
 		},
 		"parameter_mapping": param_mapping,
-		"nonactive_parameter_mapping": nonactive_param_mapping,
-		"best_params": best_params_json,
-		"nonactive_params": nonactive_params_json,
+		"best_params": _serialize_param_tree(best_params),
 	}
 
 	with open(json_filepath, "w") as f:
 		json.dump(json_data, f, indent=4)
 
-	with open(parameter_estimates_filepath, "w") as f:
-		json.dump(parameter_estimates, f, indent=4)
+	with open(parameter_evolution_filepath, "w") as f:
+		json.dump(parameter_evolution, f, indent=4)
 
 	print(f"Estimation saved to {result_dir}\n")
 
@@ -449,4 +365,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

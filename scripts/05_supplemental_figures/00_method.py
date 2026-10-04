@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Plot minimum-eigenvalue trajectories for selected well-behaved and volatile samples.
 
-Creates one figure with both trajectories from ``eval_trend_at_opt.json`` under each
-sample result directory. The stored 24 Hz series is sampled once per second for the
+Creates one figure with both optimum trajectories from ``result_time_series.h5`` under
+each sample result directory. The stored 24 Hz series is sampled once per second for the
 plot. Both axes use linear scales. By default the time axis is limited to 60 s; use
 ``--plot-to-end`` to show the full trajectory.
 """
@@ -10,11 +10,11 @@ plot. Both axes use linear scales. By default the time axis is limited to 60 s; 
 from __future__ import annotations
 
 import argparse
-import json
 import sys
 from dataclasses import dataclass
 from pathlib import Path
 
+import h5py
 import matplotlib.pyplot as plt
 import seaborn as sns
 
@@ -26,6 +26,7 @@ from src.paths import PROJECT_ROOT
 DEFAULT_SETTING = "setting_1"
 DEFAULT_WELL_BEHAVED_SAMPLE_ID = "0007_N2_0003"
 DEFAULT_VOLATILE_SAMPLE_ID = "0009_N2_0003"
+RESULT_TIME_SERIES_FILENAME = "result_time_series.h5"
 
 
 def _sample_path_from_id(sample_id: str, setting: str = DEFAULT_SETTING) -> Path:
@@ -81,38 +82,38 @@ def _configure_plot_style() -> None:
 	plt.rcParams["axes.linewidth"] = 1.2
 
 
-def _resolve_eval_trend_path(sample_path: Path) -> Path:
-	"""Resolve a user path to ``eval_trend_at_opt.json``."""
+def _resolve_time_series_path(sample_path: Path) -> Path:
+	"""Resolve a user path to ``result_time_series.h5``."""
 	path = sample_path.expanduser().resolve()
 	if not path.exists():
 		raise FileNotFoundError(f"Sample path does not exist: {path}")
 
 	if path.is_file():
-		if path.name == "eval_trend_at_opt.json":
+		if path.name == RESULT_TIME_SERIES_FILENAME:
 			return path
 		if path.name == "summary.json":
-			candidate = path.parent / "eval_trend_at_opt.json"
+			candidate = path.parent / RESULT_TIME_SERIES_FILENAME
 			if candidate.is_file():
 				return candidate
 		raise FileNotFoundError(
-			f"Expected eval_trend_at_opt.json or summary.json, got: {path}"
+			f"Expected {RESULT_TIME_SERIES_FILENAME} or summary.json, got: {path}"
 		)
 
-	candidate = path / "eval_trend_at_opt.json"
+	candidate = path / RESULT_TIME_SERIES_FILENAME
 	if candidate.is_file():
 		return candidate
 
 	raise FileNotFoundError(
-		f"Could not find eval_trend_at_opt.json under sample directory: {path}"
+		f"Could not find {RESULT_TIME_SERIES_FILENAME} under sample directory: {path}"
 	)
 
 
 def _parse_sample_descriptor(sample_path: Path) -> SampleDescriptor:
-	eval_path = _resolve_eval_trend_path(sample_path)
-	results_name = eval_path.parent.name
+	time_series_path = _resolve_time_series_path(sample_path)
+	results_name = time_series_path.parent.name
 	if not results_name.startswith("results_"):
 		raise ValueError(
-			f"Could not parse sample descriptor from results directory: {eval_path.parent}"
+			f"Could not parse sample descriptor from results directory: {time_series_path.parent}"
 		)
 
 	model_id, population, run_id = results_name.removeprefix("results_").split("_")
@@ -133,38 +134,36 @@ def _comparison_output_path(
 	return comparison_dir / filename
 
 
-def _sample_label(sample_path: Path, eval_path: Path) -> str:
+def _sample_label(sample_path: Path, time_series_path: Path) -> str:
 	if sample_path.is_file():
 		sample_path = sample_path.parent
-	parts = eval_path.parts
+	parts = time_series_path.parts
 	for index, part in enumerate(parts):
 		if part.startswith("model_") and index + 2 < len(parts):
 			model_id = part
 			population = parts[index + 2]
-			sample_name = eval_path.parent.name
+			sample_name = time_series_path.parent.name
 			return f"{model_id}, {population}, {sample_name}"
-	return eval_path.parent.name
+	return time_series_path.parent.name
 
 
 def load_trajectory(sample_path: Path) -> TrajectoryRecord:
-	eval_path = _resolve_eval_trend_path(sample_path)
-	with open(eval_path, "r") as f:
-		payload = json.load(f)
-
-	time_seconds = [float(x) for x in payload.get("time_seconds", [])]
-	min_eigenvalues = [float(x) for x in payload.get("min_eigenvalues", [])]
+	time_series_path = _resolve_time_series_path(sample_path)
+	with h5py.File(time_series_path, "r") as f:
+		time_seconds = [float(x) for x in f["time_seconds"][:]]
+		min_eigenvalues = [float(x) for x in f["results/optimum/min_eigenvalues"][:]]
 	if not time_seconds or len(time_seconds) != len(min_eigenvalues):
 		raise ValueError(
-			f"Invalid trajectory data in {eval_path}: "
+			f"Invalid trajectory data in {time_series_path}: "
 			f"len(time_seconds)={len(time_seconds)}, "
 			f"len(min_eigenvalues)={len(min_eigenvalues)}"
 		)
 
 	return TrajectoryRecord(
-		label=_sample_label(sample_path, eval_path),
+		label=_sample_label(sample_path, time_series_path),
 		time_seconds=time_seconds,
 		min_eigenvalues=min_eigenvalues,
-		source_path=eval_path,
+		source_path=time_series_path,
 	)
 
 
@@ -294,7 +293,7 @@ def main() -> None:
 		type=Path,
 		default=DEFAULT_WELL_BEHAVED_PATH,
 		help=(
-			"Path to a sample result directory, summary.json, or eval_trend_at_opt.json "
+			"Path to a sample result directory, summary.json, or result_time_series.h5 "
 			"for the well-behaved example."
 		),
 	)
@@ -303,7 +302,7 @@ def main() -> None:
 		type=Path,
 		default=DEFAULT_VOLATILE_PATH,
 		help=(
-			"Path to a sample result directory, summary.json, or eval_trend_at_opt.json "
+			"Path to a sample result directory, summary.json, or result_time_series.h5 "
 			"for the volatile example."
 		),
 	)

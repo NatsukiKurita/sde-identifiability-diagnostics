@@ -38,17 +38,6 @@ def _build_time_points(num_steps: int, dt: float, interval_seconds: float) -> tu
 	return time_indices, (time_indices + 1) * float(dt)
 
 
-def _split_active_params(params_tree, activity_tree):
-	if isinstance(activity_tree, dict):
-		active_out = {}
-		for key in activity_tree:
-			child = _split_active_params(params_tree[key], activity_tree[key])
-			if child is not None:
-				active_out[key] = child
-		return active_out if active_out else None
-	return params_tree if bool(np.asarray(activity_tree)) else None
-
-
 def _serialize_param_tree(tree):
 	if tree is None:
 		return {}
@@ -60,11 +49,9 @@ def _serialize_param_tree(tree):
 
 def estimate_parameter_trend(
 	loss_fn_stepwise,
-	fixed_params,
-	is_active_tree,
-	active_initial_params,
-	active_lower,
-	active_upper,
+	initial_params,
+	lower_bounds,
+	upper_bounds,
 	states,
 	states_next,
 	aux_data,
@@ -97,16 +84,10 @@ def estimate_parameter_trend(
 			for key, value in aux_data.items()
 		}
 
-		def prefix_loss_active_only(active_params):
-			full_params = jax.tree_util.tree_map(
-				lambda fixed, active, mask: active if mask else fixed,
-				fixed_params,
-				active_params,
-				is_active_tree,
-			)
+		def prefix_loss(params):
 			return jnp.sum(
 				jax.vmap(loss_fn_stepwise, in_axes=(None, 0, 0, aux_axes))(
-					full_params,
+					params,
 					prefix_states,
 					prefix_states_next,
 					prefix_aux_data,
@@ -115,45 +96,37 @@ def estimate_parameter_trend(
 
 		print(f"Estimating cumulative parameters at T={float(time_value):g} s...")
 		pre_params, _, presearch_iters, pre_meta = trust_constr_optimizer(
-			prefix_loss_active_only,
-			active_initial_params,
-			active_lower,
-			active_upper,
+			prefix_loss,
+			initial_params,
+			lower_bounds,
+			upper_bounds,
 			tol=EstimationConfig.TOL_PRESEARCH_TRUST_CONSTR,
 			xtol=EstimationConfig.XTOL_PRESEARCH_TRUST_CONSTR,
 			maxiter=EstimationConfig.MAXITER_PRESEARCH_TRUST_CONSTR,
 			return_metadata=True,
 		)
-		best_active_params, best_loss, iterations, meta = trust_constr_optimizer(
-			prefix_loss_active_only,
+		best_params, best_loss, iterations, meta = trust_constr_optimizer(
+			prefix_loss,
 			pre_params,
-			active_lower,
-			active_upper,
+			lower_bounds,
+			upper_bounds,
 			return_metadata=True,
-		)
-		best_params = jax.tree_util.tree_map(
-			lambda fixed, active, mask: active if mask else fixed,
-			fixed_params,
-			best_active_params,
-			is_active_tree,
 		)
 		estimates.append(
 			{
 				"time_seconds": float(time_value),
 				"time_index": int(time_index),
 				"num_steps": num_steps,
-				"best_loss": float(best_loss),
-				"loss_opt_norm": float(best_loss / float(num_agents * num_steps)),
+				"mean_loss": float(best_loss / float(num_agents * num_steps)),
 				"presearch_iterations": int(presearch_iters),
 				"iterations": int(iterations),
 				"presearch_message": str(pre_meta.get("message", "")),
 				"message": str(meta.get("message", "")),
-				"best_params": _serialize_param_tree(_split_active_params(best_params, is_active_tree)),
+				"best_params": _serialize_param_tree(best_params),
 			}
 		)
 		final_result = {
-			"best_active_params": best_active_params,
-			"best_loss": float(best_loss),
+			"best_params": best_params,
 			"presearch_iterations": int(presearch_iters),
 			"presearch_meta": pre_meta,
 			"iterations": int(iterations),

@@ -40,7 +40,7 @@ ERROR_PLOT_KINETICS_DIRS = (
 def _record_parameter_accuracy_series(record: PaperRecord) -> tuple[np.ndarray, np.ndarray] | None:
 	if record.result_dir is None:
 		return None
-	estimates_path = record.result_dir / "parameter_estimates.json"
+	estimates_path = record.result_dir / "parameter_evolution.json"
 	if not estimates_path.is_file():
 		return None
 
