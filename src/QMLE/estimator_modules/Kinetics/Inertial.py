@@ -18,13 +18,13 @@ def loss__inertial_stepwise(
     omega_t = state_t["angular_velocities"]  # shape: (N,)
     omega_next = state_next["angular_velocities"]  # shape: (N,)
 
-    term0 = jnp.log(sigma_omega)  # 定数項 (Nに対して1回)
+    term0 = jnp.log(sigma_omega)  # Constant term (once per N)
     term1 = 0.5 * jnp.log(2 * jnp.pi * dt)
-    term2 = jnp.log(dt/2)  # 数値積分による補正項
+    term2 = jnp.log(dt/2)  # Correction term from numerical integration
 
     optimal_omega = social_factor_t # shape: (N,)
     sq_diff = (omega_next - omega_t + (omega_t - optimal_omega) * (dt / tau)) ** 2
     term3 = sq_diff / (2 * (sigma_omega ** 2) * dt)
 
-    # 合計
+    # Sum
     return (term0 + term1 + term2) * N + jnp.sum(term3)

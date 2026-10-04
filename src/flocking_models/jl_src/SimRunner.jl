@@ -16,7 +16,7 @@ module SimRunner
 
     include_physics_modules!()
 
-    # 共通のモジュール
+    # Common modules
     include("./Common/InitState.jl")
     include("./Common/SimIO.jl")
     include("./Core/Simulation.jl")
@@ -36,7 +36,7 @@ module SimRunner
         )
 
         println("Loading simulation setup from: $input_config")
-        if ispath(output_path) # 結果の存在確認
+        if ispath(output_path) # Check whether the result already exists
             if overwrite
                 println("Warning: Output file already exists and will be overwritten: $output_path")
             else
@@ -47,7 +47,7 @@ module SimRunner
 
         kinetics, social, num_frames, dt, safe_eps, T = load_simulation_setup(input_config)
         neighbor = Neighbor_Voronoi.Neighbor_Voronoi()
-        seed = sim_num  # sim_numをシードとして使用することで、同じsim_numであれば同じ初期状態と同じランダムな挙動が再現されるようにする
+        seed = sim_num  # Use sim_num as the seed so the same sim_num reproduces the same initial state and random behavior
 
         println("Configuration successfully loaded. Starting simulation...\n")
         println("Number of agents: $agent_num, Number of frames: $num_frames, Time step: $dt, Seed: $seed")

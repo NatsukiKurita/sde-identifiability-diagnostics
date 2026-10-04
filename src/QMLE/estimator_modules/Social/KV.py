@@ -6,28 +6,28 @@ import src.QMLE.registry as registry
 def social_kv_stepwise(params, states_t, neighbor_weights, aux_data_t):
     k_alg = params["Social"]["k_alg"]
 
-    # 1. 状態から角度(orientations)を取得 (N,)
-    # ※ states_t のキー名は実装に合わせて適宜変更してください
+    # 1. Get orientations from the state (N,)
+    # Note: adjust the states_t key names to match the implementation
     theta_t = states_t["orientations"]
 
-    # 2. ブロードキャストのための次元拡張
-    # theta_self: 自分(i)の角度 (N, 1)
-    # theta_nbr : 相手(j)の角度 (1, N)
+    # 2. Expand dimensions for broadcasting
+    # theta_self: angle of agent i (N, 1)
+    # theta_nbr : angle of agent j (1, N)
     theta_self = theta_t[:, jnp.newaxis] 
     theta_nbr = theta_t[jnp.newaxis, :]  
 
-    # 3. 角度差とサインの計算 (N, N)
+    # 3. Angle differences and their sines (N, N)
     delta_theta_ij = theta_nbr - theta_self
     sin_delta_theta_ij = jnp.sin(delta_theta_ij)
 
-    # 4. 重み行列による重み付け (N, N)
-    # 自分自身への影響(i=j)は、neighbor_weightsの対角成分が0であればここで自動的に消えます
+    # 4. Apply the weight matrix (N, N)
+    # Self-interaction (i=j) vanishes here automatically if the diagonal of neighbor_weights is 0
     interaction_weighted = sin_delta_theta_ij * neighbor_weights
 
-    # 5. 各エージェント(i)について、全他個体(j)からの影響を足し合わせる (N,)
+    # 5. For each agent i, sum the contributions from all other agents j (N,)
     sum_interaction = jnp.sum(interaction_weighted, axis=1)
 
-    # 6. 結合係数 k_alg を掛けて最終的な social_factor を返す
+    # 6. Multiply by the coupling coefficient k_alg and return the final social_factor
     social_factor = k_alg * sum_interaction
 
     return social_factor

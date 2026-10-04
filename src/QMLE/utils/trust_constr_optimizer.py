@@ -59,12 +59,12 @@ def trust_constr_optimizer(
     if any(size != batch_size for size in batch_size_candidates):
         raise ValueError("Inconsistent leading batch dimension in initial_params.")
 
-    # バッチの1つ目の要素を取り出し、PyTree構造と平坦化/復元関数を取得
+    # Take the first element of the batch to obtain the PyTree structure and flatten/unflatten functions
     single_init = jax.tree.map(lambda x: x[0], initial_params_processed)
     flat_single_init, unflatten_fn = ravel_pytree(single_init)
     opt_dtype = flat_single_init.dtype
 
-    # 境界のPyTreeも同様に平坦化してSciPy用のBoundsオブジェクトを作成
+    # Flatten the bounds PyTree in the same way and build a SciPy Bounds object
     flat_lower, _ = ravel_pytree(lower_bounds)
     flat_upper, _ = ravel_pytree(upper_bounds)
     flat_lower_np = np.array(flat_lower, dtype=np.float64)
@@ -72,11 +72,11 @@ def trust_constr_optimizer(
     scipy_bounds = optimize.Bounds(flat_lower_np, flat_upper_np)
 
     # ---------------------------------------------------------
-    # JAX JITコンパイル済みの数値計算コア関数群
+    # Core numerical functions, JIT-compiled with JAX
     # ---------------------------------------------------------
     @jax.jit
     def val_and_grad_flat(x_flat: jnp.ndarray):
-        """目的関数と勾配を同時に計算（SciPyの jac=True に対応）"""
+        """Compute the objective and its gradient together (for SciPy's jac=True)."""
         params = unflatten_fn(x_flat)
         loss, grads = jax.value_and_grad(loss_fn_fixed)(params)
         grads_flat, _ = ravel_pytree(grads)
@@ -84,24 +84,24 @@ def trust_constr_optimizer(
 
     @jax.jit
     def hvp_flat(x_flat: jnp.ndarray, p_flat: jnp.ndarray):
-        """Hessian-Vector Product (HVP) を計算"""
+        """Compute the Hessian-vector product (HVP)."""
         params = unflatten_fn(x_flat)
         p_tree = jax.tree.map(
             lambda tangent, param: jnp.asarray(tangent, dtype=param.dtype),
             unflatten_fn(p_flat),
             params,
         )
-        # forward-over-reverse 自動微分による正確なHVP計算
+        # Exact HVP via forward-over-reverse automatic differentiation
         _, hvp_tree = jax.jvp(jax.grad(loss_fn_fixed), (params,), (p_tree,))
         hvp_flat_arr, _ = ravel_pytree(hvp_tree)
         return hvp_flat_arr
 
     # ---------------------------------------------------------
-    # SciPyへ渡すためのラッパー関数（JAX配列とNumPy配列の橋渡し）
+    # Wrapper functions passed to SciPy (bridge between JAX and NumPy arrays)
     # ---------------------------------------------------------
     def scipy_fun(x_np: np.ndarray):
         loss, grad = val_and_grad_flat(jnp.asarray(x_np, dtype=opt_dtype))
-        # SciPyは標準のfloatとNumPyのfloat64配列を要求する
+        # SciPy expects a Python float and NumPy float64 arrays
         return float(loss), np.array(grad, dtype=np.float64)
 
     def scipy_hessp(x_np: np.ndarray, p_np: np.ndarray):
@@ -110,7 +110,7 @@ def trust_constr_optimizer(
         return np.array(hvp_res, dtype=np.float64)
 
     # ---------------------------------------------------------
-    # 最適化の実行（バッチループ）
+    # Run the optimization (loop over the batch)
     # ---------------------------------------------------------
     print(f"Running trust-constr optimization with {batch_size} initial points...")
     
@@ -124,7 +124,7 @@ def trust_constr_optimizer(
     }
 
     for i in range(batch_size):
-        # i番目の初期パラメータを抽出して平坦化
+        # Extract and flatten the i-th initial parameters
         x0_tree = jax.tree.map(lambda x: x[i], initial_params_processed)
         x0_flat, _ = ravel_pytree(x0_tree)
         x0_flat = np.clip(np.array(x0_flat, dtype=np.float64), flat_lower_np, flat_upper_np)
@@ -133,14 +133,14 @@ def trust_constr_optimizer(
             fun=scipy_fun,
             x0=x0_flat,
             method='trust-constr',
-            jac=True,            # scipy_funが勾配も返すことを指定
-            hessp=scipy_hessp,   # 鞍点脱出の要となるHVP関数を指定
+            jac=True,            # scipy_fun also returns the gradient
+            hessp=scipy_hessp,   # HVP function, key to escaping saddle points
             bounds=scipy_bounds,
             options={
                 'gtol': tol,
                 'xtol': xtol,
                 'maxiter': maxiter,
-                'verbose': 0     # 必要に応じて1や2に変更してデバッグ可能
+                'verbose': 0     # Set to 1 or 2 for debugging output
             }
         )
 
@@ -154,7 +154,7 @@ def trust_constr_optimizer(
                 "status": int(res.status),
             }
 
-    # 最良の平坦化パラメータを元のPyTree（辞書）構造に復元
+    # Restore the best flattened parameters to the original PyTree (dict) structure
     if best_params_flat is None:
         raise RuntimeError("Optimization failed across all initial starts.")
         

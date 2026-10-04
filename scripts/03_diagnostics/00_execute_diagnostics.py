@@ -84,7 +84,7 @@ def _compute_hessian_time_series(
 		aux_data,
 	)
 
-	# ヘシアンの無次元化
+	# Nondimensionalize the Hessian
 	weights = flat_params[jnp.newaxis, :] * flat_params[:, jnp.newaxis]
 	cumulative_hessians = jnp.cumsum(step_hessians * weights, axis=0)
 

@@ -7,12 +7,12 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from src.paths import PROJECT_ROOT, JULIA_PROJECT_DIR, JULIA_SYSIMAGE_PATH
 
 ########################################
-# 3. ビルドするときにDelaunayTriangulationが重くて動かないがち.
+# 3. Building DelaunayTriangulation is memory-heavy and often stalls.
 # sudo fallocate -l 8G /swapfile_large
 # sudo chmod 600 /swapfile_large
 # sudo mkswap /swapfile_large
 # sudo swapon /swapfile_large
-# を実行してスワップ領域を確保してから実行する必要あり. 
+# Run the commands above to allocate swap space before running this script.
 ########################################
 
 def build_sysimage():
@@ -43,7 +43,7 @@ def build_sysimage():
             cwd=PROJECT_ROOT
         )
 
-    # ログをリアルタイム表示
+    # Stream the build log in real time
         for line in process.stdout:
             print(line, end="")
         

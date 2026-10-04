@@ -1,7 +1,7 @@
 using Pkg
 
 project_dir = dirname(@__DIR__)
-Pkg.activate(mktempdir()) # 一時的な環境を使用
+Pkg.activate(mktempdir()) # Use a temporary environment
 Pkg.add("PackageCompiler")
 
 using PackageCompiler

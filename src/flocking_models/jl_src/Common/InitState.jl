@@ -7,7 +7,7 @@ module InitState
 
     export generate_initial_positions, generate_initial_states
 
-    # 初期位置は開放領域上の初期雲。壁による拘束ではない。
+    # Initial positions form a cloud in open space; they are not confined by walls.
     function generate_initial_positions(
         num_agents::Int,
         rng::AbstractRNG,

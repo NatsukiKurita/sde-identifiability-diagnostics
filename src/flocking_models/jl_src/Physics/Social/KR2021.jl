@@ -14,7 +14,7 @@ module Soc_KR2021
         d_eq::T
     end
 
-    # --- バッファの定義・関数 ---
+    # --- Buffer definitions and functions ---
     struct Buffer_Soc_KR2021{T <: AbstractFloat} <: AbstractBuffer
         social_factor::Vector{T} # projected social force for Soc_KR2021
     end
@@ -28,7 +28,7 @@ module Soc_KR2021
         fill!(buffers.social_factor, zero(T))
     end
 
-    # --- 社会的相互作用の更新 ---
+    # --- Update social interactions ---
     function calculate_social_interactions!(
         kinetics,
         social::Soc_KR2021,
@@ -45,12 +45,12 @@ module Soc_KR2021
         d_eq = social.d_eq
 
         for i in 1:num_agents
-            # 整列力計算で使う変数
+            # Variables used for the alignment force
             theta_i = states.orientations[i]
             s, c = sincos(theta_i)
             vel_i =  states.velocities[i]  
 
-            # 反発力計算で使う変数
+            # Variables used for the repulsion force
             pos_i = states.positions[i]
 
             force_by_neighbors = SVector{2, T}(0.0, 0.0)
@@ -61,7 +61,7 @@ module Soc_KR2021
                     d_ij = norm(r_ij)
                     e_ij = r_ij / (d_ij + safe_eps)
 
-                    # 整列力
+                    # Alignment force
                     vel_j = states.velocities[j]
                     delta_v = vel_j - vel_i
                     force_alg = k_alg * delta_v * neighbor_buffers.weights[i, j]

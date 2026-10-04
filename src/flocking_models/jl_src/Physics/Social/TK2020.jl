@@ -26,7 +26,7 @@ module Soc_TK2020
         fill!(buffers.social_factor, zero(T))
     end
 
-    # --- 社会的相互作用の計算 ---
+    # --- Compute social interactions ---
     function calculate_social_interactions!(
         kinetics,
         social::Soc_TK2020,
@@ -49,7 +49,7 @@ module Soc_TK2020
             coh_force = SVector{2, T}(0.0, 0.0)
             alg_force = SVector{2, T}(0.0, 0.0)
 
-            # 反発力の計算
+            # Compute repulsion
             for j in 1:num_agents
                 if i != j && neighbor_buffers.weights[i, j] > 0
                     pos_j = states.positions[j]
@@ -59,7 +59,7 @@ module Soc_TK2020
                 end
             end
 
-            # 吸引力・整列力の計算
+            # Compute attraction and alignment
             center_of_mass_others = SVector{2, T}(0.0, 0.0)
             avg_velocity_others = SVector{2, T}(0.0, 0.0)
 
@@ -78,7 +78,7 @@ module Soc_TK2020
             norm_diff_vel = norm(diff_to_avg_vel) + safe_eps
             alg_force = k_alg * diff_to_avg_vel / norm_diff_vel
 
-            # 合計
+            # Sum
             total_force = sep_force + coh_force + alg_force
             s, c = sincos(ori_i)
             projected_total_force = dot(total_force, SVector{2, T}(-s, c))

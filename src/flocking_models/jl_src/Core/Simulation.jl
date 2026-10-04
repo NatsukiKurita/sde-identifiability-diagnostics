@@ -19,8 +19,8 @@ module Simulation
         T::Type{<:AbstractFloat}
     )
 
-        # 状態とバッファの初期化
-        states = generate_initial_states(num_agents, kinetics, rng,  T) # 状態の初期化関数（位置、速度、向きなど）
+        # Initialize states and buffers
+        states = generate_initial_states(num_agents, kinetics, rng,  T) # Initialize states (positions, velocities, orientations, etc.)
 
         neighbor_buffers = allocate_neighbor_buffers(neighbor_method, num_agents, T) 
         social_buffers = allocate_social_buffers(social, num_agents, T)
@@ -35,12 +35,12 @@ module Simulation
         end
 
         for step in 1:num_frames
-            update_neighbors!(neighbor_method, states, neighbor_buffers, rng) # Neighborバッファの更新
-            reset_buffers!(social_buffers) # Socialバッファのリセット
-            calculate_social_interactions!(kinetics, social, states, social_buffers, neighbor_buffers, safe_eps) # v_0はkineticsに格納されている
+            update_neighbors!(neighbor_method, states, neighbor_buffers, rng) # Update neighbor buffers
+            reset_buffers!(social_buffers) # Reset social buffers
+            calculate_social_interactions!(kinetics, social, states, social_buffers, neighbor_buffers, safe_eps) # v_0 is stored in kinetics
             update_state_by_kinetics!(kinetics, states, social_buffers, dt, rng)
             
-            # 状態の保存
+            # Save states
             history_pos[:, step] .= states.positions
             history_ori[:, step] .= states.orientations
             history_vel[:, step] .= states.velocities

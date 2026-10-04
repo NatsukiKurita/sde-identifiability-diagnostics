@@ -11,7 +11,7 @@ module Soc_KV
         k_alg::T
     end
 
-    # --- バッファの定義・関数 ---
+    # --- Buffer definitions and functions ---
     struct Buffer_Soc_KV{T <: AbstractFloat} <: AbstractBuffer
         social_factor::Vector{T}
     end
@@ -25,7 +25,7 @@ module Soc_KV
         fill!(buffers.social_factor, zero(T))
     end
 
-    # --- 最適角速度の社会的な部分の更新 ---
+    # --- Update the social part of the optimal angular velocity ---
     function calculate_social_interactions!(
         kinetics,
         social::Soc_KV,

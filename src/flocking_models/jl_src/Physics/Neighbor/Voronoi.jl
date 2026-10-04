@@ -8,7 +8,7 @@ module Neighbor_Voronoi
     export Neighbor_Voronoi, NeighborBuffer_Voronoi
 
     struct Neighbor_Voronoi <: AbstractNeighborMethod
-        # Voronoi隣接はパラメータなし。隣接関係はドロネー三角形分割から得る。
+        # Voronoi neighbors have no parameters; adjacency comes from the Delaunay triangulation.
     end
 
     struct NeighborBuffer_Voronoi{T<:AbstractFloat} <: AbstractBuffer
@@ -43,7 +43,7 @@ module Neighbor_Voronoi
             return
         end
 
-        # ドロネー辺は Voronoi 隣接に一致する
+        # Delaunay edges coincide with Voronoi adjacency
         tri = triangulate(positions, rng=rng)
         for i in 1:length(positions)
             for j in get_neighbours(tri, i)

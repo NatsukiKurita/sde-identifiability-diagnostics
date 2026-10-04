@@ -9,7 +9,7 @@ module Soc_Null
     export Soc_Null
 
     struct Soc_Null <: AbstractSocial
-        # 社会的相互作用なしのモデルなので、パラメータはなし
+        # No social interaction in this model, so there are no parameters
     end
 
     struct Buffer_Soc_Null{T <: AbstractFloat} <: AbstractBuffer

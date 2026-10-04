@@ -43,18 +43,18 @@ module Dynamics_Overdamped
         noise_factor = kinetics.sigma_theta * sqrt(dt)   # Precompute for efficiency
 
         @inbounds @simd for i in eachindex(states.positions)
-            # 更新前の情報
+            # State before the update
             current_orient = states.orientations[i]
             current_s, current_c = sincos(current_orient)
             current_direction = SVector{2, T}(current_c, current_s)
 
-            # 力の計算
+            # Compute forces
             total_factor = social_buffers.social_factor[i]
 
-            # 角度の更新 (Euler-Maruyama法)
+            # Update angles (Euler-Maruyama method)
             states.orientations[i] += total_factor * drift_factor + noise_factor * randn(rng, T)
 
-            # 速度と位置の更新 (Heun法)
+            # Update velocities and positions (Heun's method)
             next_orient = states.orientations[i]
             next_s, next_c = sincos(next_orient)
             next_direction = SVector{2, T}(next_c, next_s)

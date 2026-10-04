@@ -32,7 +32,7 @@ def extract_params_from_toml(config_toml):
             module_params = {} 
             
             for key, value in config_toml[module].items():
-                # bool型（True/False）が数値として抽出されるのを防ぐ
+                # Prevent bools (True/False) from being extracted as numbers
                 if isinstance(value, (int, float)) and not isinstance(value, bool):
                     module_params[key] = value
             params[module] = module_params

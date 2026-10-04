@@ -12,7 +12,7 @@ module Soc_G2012
         k_alg::T
     end
 
-    # --- バッファの定義・関数 ---
+    # --- Buffer definitions and functions ---
     struct Buffer_Soc_G2012{T <: AbstractFloat} <: AbstractBuffer
         social_factor::Vector{T}
     end
@@ -26,7 +26,7 @@ module Soc_G2012
         fill!(buffers.social_factor, zero(T))
     end
 
-    # --- 最適角速度の社会的な部分の更新 ---
+    # --- Update the social part of the optimal angular velocity ---
     function calculate_social_interactions!(
         kinetics,
         social::Soc_G2012,
@@ -46,18 +46,18 @@ module Soc_G2012
                 if i != j && neighbor_buffers.weights[i, j] > 0
                     pos_j = states.positions[j]
 
-                    # 吸引
+                    # Attraction
                     r_ij = pos_j - pos_i
                     d_ij = norm(r_ij)
                     phi_ij = atan(r_ij[2], r_ij[1]) - ori_i
                     attraction = social.k_pos * d_ij * sin(phi_ij)
 
-                    # 整列
+                    # Alignment
                     ori_j = states.orientations[j]
                     delta_theta_ij = ori_j - ori_i
                     alignment = social.k_alg * sin(delta_theta_ij)
 
-                    # 合計
+                    # Sum
                     social_interaction += (attraction + alignment) * neighbor_buffers.weights[i, j]
                 end
             end

@@ -21,7 +21,7 @@ function restore_neighbors(positions)
     max_neighbors = 0
 
     if num_agents == 1
-        # 何もしない
+        # Do nothing
     elseif num_agents == 2
         for t in 1:num_steps
             push!(neighbor_list[t][1], 2)
@@ -39,7 +39,7 @@ function restore_neighbors(positions)
                         push!(neighbor_list[t][i], j)
                     end
                 end
-                # 最大近傍数の更新
+                # Update the maximum number of neighbors
                 if length(neighbor_list[t][i]) > max_neighbors
                     max_neighbors = length(neighbor_list[t][i])
                 end
@@ -47,22 +47,22 @@ function restore_neighbors(positions)
         end
     end
     
-    # 変更点1: 次元を (時間ステップ, エージェント数, 最大近傍数) T × N × E の形に変更
+    # Dimensions are (time steps, agents, max neighbors): T × N × E
     padded_neighbors = fill(0, (num_steps, num_agents, max_neighbors))
     
     for t in 1:num_steps
         for i in 1:num_agents
             neighbors = neighbor_list[t][i]
             for (k, neighbor_idx) in enumerate(neighbors)
-                # 変更点2: 書き込む次元の順番を (t, i, k) に変更
+                # Write in (t, i, k) order
                 padded_neighbors[t, i, k] = neighbor_idx 
             end
         end
     end
     
-    # 0 -> -1 (パディング), 1-based index -> 0-based index に変換
+    # Convert 0 -> -1 (padding) and 1-based -> 0-based indices
     padded_neighbors .= padded_neighbors .- 1 
-    return permutedims(padded_neighbors, (3, 2, 1)) # python側での (T, N, E) に合わせて次元を入れ替え
+    return permutedims(padded_neighbors, (3, 2, 1)) # Permute dimensions to match (T, N, E) on the Python side
 end
 
 if abspath(PROGRAM_FILE) == @__FILE__
@@ -84,7 +84,7 @@ if abspath(PROGRAM_FILE) == @__FILE__
         println("Processing: ", file)
         h5open(file, "r+") do h5
 
-            # 既に存在する場合はスキップ（コメントでは削除となっていますが、現状はスキップの動きです）
+            # Skip if it already exists
             if haskey(h5, dataset_name)
                 println("Dataset '", dataset_name, "' already exists in ", file, ". Skipping.")
             else
@@ -92,11 +92,11 @@ if abspath(PROGRAM_FILE) == @__FILE__
                 padded_neighbors = restore_neighbors(positions)
                 
                 if isempty(padded_neighbors) || size(padded_neighbors, 1) == 0 || size(padded_neighbors, 2) == 0
-                    # 空の場合は chunk や deflate を指定せずに書き込む
+                    # If empty, write without specifying chunk or deflate
                     h5[dataset_name] = padded_neighbors
                     println("Saved EMPTY Delaunay neighbors to: ", dataset_name)
                 else
-                    # 通常通りの書き込み
+                    # Normal write
                     h5[dataset_name, deflate=4, chunk=(size(padded_neighbors, 1), size(padded_neighbors, 2), 1)] = padded_neighbors
                     println("Saved Delaunay neighbors to: ", dataset_name)
                 end

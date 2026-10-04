@@ -17,12 +17,12 @@ def loss__overdamped_stepwise(
     theta_t = state_t["orientations"]  # shape: (N,)
     theta_next = state_next["orientations"]  # shape: (N,)
 
-    term0 = jnp.log(sigma_theta)  # 定数項 (Nに対して1回)
+    term0 = jnp.log(sigma_theta)  # Constant term (once per N)
     term1 = 0.5 * jnp.log(2 * jnp.pi * dt)
 
     optimal_omega = social_factor_t  # shape: (N,)
     sq_diff = (theta_next - theta_t - optimal_omega * dt) ** 2
     term2 = sq_diff / (2 * (sigma_theta ** 2) * dt)
 
-    # 合計
+    # Sum
     return (term0 + term1) * N + jnp.sum(term2)

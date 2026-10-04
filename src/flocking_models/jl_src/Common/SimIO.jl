@@ -16,20 +16,20 @@ module SimIO
         end
     end
 
-    # --- HDF5保存 ---
+    # --- Save to HDF5 ---
     function svector_to_matrix(vec_of_svec::AbstractArray{SVector{D, T}}) where {D, T}
         return reinterpret(reshape, T, vec_of_svec)
     end
 
     function save_simulation_h5(
         filename::String,
-        state_hist, # NamedTuple等で :pos, :vel, :ori, :ang_vel を持つ履歴データ
+        state_hist, # History data (e.g. a NamedTuple) with :pos, :vel, :ori, :ang_vel
     ) 
 
         h5open(filename, "w") do h5file
     
-            # --- 状態変数・パラメータ情報 ---
-            # Julia側の変数名(Symbol) -> HDF5(Python)側のデータセット名(String) の変換マップ
+            # --- State variables and parameter info ---
+            # Map from Julia variable names (Symbol) to HDF5 (Python) dataset names (String)
             state_mapping = [
                 (:positions, "positions"),
                 (:velocities, "velocities"),

@@ -40,7 +40,7 @@ module ConfigParser
         dt         = T(sim_cfg["dt"])
         safe_eps   = T(sim_cfg["safe_eps"])
 
-        config["Kinetics"]["v_0"] = T(sim_cfg["v_0"]) # v_0はkineticsのパラメータなので、kinetics構造体にセットするためにここでconfigに追加しておく
+        config["Kinetics"]["v_0"] = T(sim_cfg["v_0"]) # v_0 is a kinetics parameter, so add it to config here so it can be set on the kinetics struct
 
         kinetics       = build_component(config["Kinetics"], T)
         social         = build_component(config["Social"], T)
@@ -63,8 +63,8 @@ module ConfigParser
             key = string(name)
             if haskey(config, key)
                 push!(args, T(config[key]))
-            elseif key == "v_0" # v_0はkineticsのパラメータなので、kinetics構造体にセットする。ここではスキップして後でセットする。
-                push!(args, T(0.0)) # ダミーの値を入れておいて、後でkinetics構造体にセットする
+            elseif key == "v_0" # v_0 is a kinetics parameter and is set on the kinetics struct; skip it here and set it later.
+                push!(args, T(0.0)) # Insert a placeholder value; the real value is set on the kinetics struct later
              else
                 error("Missing required parameter '$name' for component type '$type_name'")
             end
