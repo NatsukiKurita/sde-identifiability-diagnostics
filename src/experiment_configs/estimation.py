@@ -14,6 +14,7 @@ class EstimationConfig:
     PRECISION = MasterConstants.ESTIMATION_PRECISION
     JNP_FLOAT_DTYPE = jnp.float64 if PRECISION == "Float64" else jnp.float32
     NP_FLOAT_DTYPE = np.float64 if PRECISION == "Float64" else np.float32
+    PARAMETER_ESTIMATION_INTERVAL = MasterConstants.PARAMETER_ESTIMATION_INTERVAL
 
     @classmethod
     def configure_jax_precision(cls) -> None:

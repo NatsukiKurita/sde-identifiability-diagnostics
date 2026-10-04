@@ -229,7 +229,8 @@ __marimo__/
 sysimage*
 
 # Large data files
-*.h5
+/data/
+/results/
 
 # OS Hidden files
 .DS_Store

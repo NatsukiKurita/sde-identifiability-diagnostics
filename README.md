@@ -23,7 +23,33 @@ Run commands from the repository root. Simulation output is written under `data/
 | `python` | `scripts/00_setup/00_setup_python_package.py` | Create `.venv` if needed, install `src/requirements.txt`, then `pip install -e .` |
 | `julia` | `scripts/00_setup/01_setup_julia_env.py` | Build the Julia sysimage `src/flocking_models/build_tools/sys_simulation.so` used by the simulator |
 
-The sysimage build runs `src/flocking_models/build_tools/precompile_script.jl`, which simulates a few seconds of every Kinetics × Social pair in the parameter presets in both `Float32` and `Float64`. The package code those runs use is compiled into the image, so simulations skip most JIT compilation at startup. The build needs roughly 9 GB of memory. If it fails, add swap space and rerun `./run_setup.sh julia`. Rebuild after changing `src/flocking_models/Manifest.toml` or adding a model to the presets.
+#### Julia and system toolchain
+
+The simulations were developed and tested with Julia 1.12.6. For reproducibility, install this version with [Juliaup](https://github.com/JuliaLang/juliaup) if Julia is not already available:
+
+```bash
+curl -fsSL https://install.julialang.org | sh
+```
+
+After the installation completes, restart the terminal so that the updated `PATH` takes effect. Then install and select Julia 1.12.6:
+
+```bash
+juliaup add 1.12.6
+juliaup default 1.12.6
+julia --version
+```
+
+On Ubuntu and Debian systems, install the standard compilation toolchain before building the Julia environment:
+
+```bash
+sudo apt update
+sudo apt install -y build-essential
+./run_setup.sh julia
+```
+
+The `build-essential` package provides the compiler, linker, and related system tools required by Julia's `PackageCompiler` to create the custom sysimage. Users of other operating systems should install an equivalent C/C++ build toolchain. This step is only necessary when setting up or rebuilding the Julia environment.
+
+The sysimage build runs `src/flocking_models/build_tools/precompile_script.jl`, which simulates a few seconds of every Kinetics × Social pair in the parameter presets in both `Float32` and `Float64`. During this step, simulation logs will appear in the terminal; these are expected precompile runs and do not generate the pipeline's simulation data. The package code those runs use is compiled into the image, so simulations skip most JIT compilation at startup. The build needs roughly 9 GB of memory. If it fails, add swap space and rerun `./run_setup.sh julia`. Rebuild after changing `src/flocking_models/Manifest.toml` or adding a model to the presets.
 
 To use a specific interpreter:
 

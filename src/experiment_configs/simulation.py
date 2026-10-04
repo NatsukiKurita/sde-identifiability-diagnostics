@@ -9,7 +9,7 @@ class SocialSimConfig:
     PRECISION = MasterConstants.GROUND_TRUTH_PRECISION
     SAFE_EPS = MasterConstants.SAFE_EPS_32 if PRECISION == "Float32" else MasterConstants.SAFE_EPS_64
 
-    NUM_AGENTS = [2, 4, 8]
+    NUM_AGENTS = [2, 4]
     ABSOLUTE_VELOCITY = MasterConstants.ABSOLUTE_VELOCITY
     TRIALS_PER_MODEL = MasterConstants.TRIALS_PER_MODEL
     FPS = MasterConstants.FPS
