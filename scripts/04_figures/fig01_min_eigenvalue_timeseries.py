@@ -217,7 +217,7 @@ def plot_for_setting(setting_dir: Path, records: list[PaperRecord], _args) -> No
 	plot_min_eigenvalue_timeseries_panel(
 		filtered,
 		MIN_EIGENVALUE_TOP_MODELS,
-		output_dir / "min_eigenvalue_timeseries_top.pdf",
+		output_dir / "identifiable.pdf",
 		xscale="log",
 		yscale="log",
 	)
@@ -231,7 +231,7 @@ def plot_for_setting(setting_dir: Path, records: list[PaperRecord], _args) -> No
 		plot_min_eigenvalue_timeseries_panel(
 			bottom_filtered,
 			[group],
-			output_dir / f"min_eigenvalue_timeseries_bottom_{group}.pdf",
+			output_dir / f"unidentifiable_{group}.pdf",
 			xscale="linear",
 			yscale="linear",
 			inset_specs=BOTTOM_INSET_YLIMS.get(group),

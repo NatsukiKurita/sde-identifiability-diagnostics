@@ -193,7 +193,7 @@ def plot_for_setting(setting_dir: Path, records: list[PaperRecord], _args) -> No
 		plot_min_eigenvector_components(
 			records,
 			model,
-			output_dir / f"min_eigenvector_components_{model}.pdf",
+			output_dir / f"{model}.pdf",
 		)
 
 

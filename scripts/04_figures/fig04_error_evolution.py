@@ -127,7 +127,7 @@ def plot_precision_panel(
 	ax.set_xticks(xticks)
 	ax.set_xlim(left=0.0)
 	ax.set_xlabel("Time (s)")
-	ax.set_ylabel("Worst-case relative error")
+	ax.set_ylabel("Worst relative error")
 	ax.grid(True, which="both" if yscale == "log" else "major", linestyle=DASHED_LINESTYLE, alpha=0.25)
 	sns.despine(ax=ax)
 	fig.tight_layout()
@@ -151,13 +151,13 @@ def plot_for_setting(setting_dir: Path, records: list[PaperRecord], _args) -> No
 		plot_precision_panel(
 			filtered,
 			MIN_EIGENVALUE_TOP_MODELS,
-			output_dir / "error_plot_top.pdf",
+			output_dir / "error_plot_identifiable.pdf",
 			yscale="linear",
 		)
 		plot_precision_panel(
 			filtered,
 			MIN_EIGENVALUE_BOTTOM_MODELS,
-			output_dir / "error_plot_bottom.pdf",
+			output_dir / "error_plot_unidentifiable.pdf",
 			yscale="log",
 		)
 

@@ -46,7 +46,7 @@ def plot_for_setting(setting_dir: Path, records: list[PaperRecord], _args) -> No
 				continue
 			plot_spaghetti_min_eigenvalue(
 				cell,
-				output_dir / f"spaghetti_{group}_{kinetics}.pdf",
+				output_dir / f"{group}_{kinetics}.pdf",
 				figsize=figsize,
 				color=palette[group],
 				title=f"{group} ({kinetics})",
