@@ -63,7 +63,7 @@ Later stages use `.venv/bin/python` when `PYTHON` is unset. `run_overall_procedu
 
 Settings are defined by the TOML presets in `src/experiment_configs/parameter_presets/`. Each `setting_*.toml` file becomes one setting named after its file stem (for example `setting_1`). Simulated population sizes are `NUM_AGENTS` in `src/experiment_configs/simulation.py` (currently 2 and 4).
 
-After setup, `./run_overall_procedure.sh` runs every analysis stage in order. `--setting` is forwarded to simulation, estimation, diagnostics, and the paper figures. Without it, those stages use every setting in `PARAMETER_SETTINGS`. The supplemental figures always use their own defaults; `00_method.py` and `02_tk2020_n4_spaghetti.py` read `setting_1`. `--overwrite` is forwarded to TOML preparation, simulation, estimation, diagnostics, and example trajectories.
+After setup, `./run_overall_procedure.sh` runs every analysis stage in order. `--setting` is forwarded to simulation, estimation, diagnostics, and the paper figures. Without it, those stages use every setting in `PARAMETER_SETTINGS`. The supplemental figures always use their own defaults; `00_method.py`, `02_tk2020_n4_spaghetti.py`, and `03_kr2021_tandem_example.py` read `setting_1`. `--overwrite` is forwarded to TOML preparation, simulation, estimation, diagnostics, and example trajectories.
 
 ```bash
 ./run_overall_procedure.sh
@@ -79,11 +79,13 @@ After setup, `./run_overall_procedure.sh` runs every analysis stage in order. `-
 | 03 | `scripts/03_diagnostics/00_execute_diagnostics.py` | Hessian and eigenvalue diagnostics at the saved optimum and at the truth |
 | 04 | `scripts/04_figures/fig01_min_eigenvalue_timeseries.py` | Minimum-eigenvalue time series |
 | 04 | `scripts/04_figures/fig02_spaghetti.py` | Spaghetti charts of the minimum eigenvalue |
-| 04 | `scripts/04_figures/fig03_min_eigenvector_lollipop.py` | Lollipop charts of the minimum eigenvector |
+| 04 | `scripts/04_figures/fig03_min_eigenvector.py` | Contributions to the minimum eigenvector |
 | 04 | `scripts/04_figures/fig04_error_evolution.py` | Parameter-precision time series |
+| 04 | `scripts/04_figures/fig05_relative_distance.py` | KR2021 inter-individual distance distribution after burn-in |
 | 05 | `scripts/05_supplemental_figures/01_example_trajectories.py` | Example trajectories |
 | 05 | `scripts/05_supplemental_figures/00_method.py` | Method comparison of minimum-eigenvalue trajectories |
 | 05 | `scripts/05_supplemental_figures/02_tk2020_n4_spaghetti.py` | Minimum-eigenvalue spaghetti charts for TK2020 with N=4 |
+| 05 | `scripts/05_supplemental_figures/03_kr2021_tandem_example.py` | KR2021 tandem-state example in the body frame |
 
 `scripts/02_estimation/01_error_evolution.py` is imported by the estimation script. It re-estimates parameters on cumulative post-burn-in prefixes and is not a separate command. `scripts/04_figures/_common.py` holds the shared figure arguments and plotting helpers.
 
@@ -96,11 +98,13 @@ After setup, `./run_overall_procedure.sh` runs every analysis stage in order. `-
 .venv/bin/python scripts/03_diagnostics/00_execute_diagnostics.py --setting setting_1 --overwrite
 .venv/bin/python scripts/04_figures/fig01_min_eigenvalue_timeseries.py --setting setting_1
 .venv/bin/python scripts/04_figures/fig02_spaghetti.py --setting setting_1
-.venv/bin/python scripts/04_figures/fig03_min_eigenvector_lollipop.py --setting setting_1
+.venv/bin/python scripts/04_figures/fig03_min_eigenvector.py --setting setting_1
 .venv/bin/python scripts/04_figures/fig04_error_evolution.py --setting setting_1
+.venv/bin/python scripts/04_figures/fig05_relative_distance.py --setting setting_1
 .venv/bin/python scripts/05_supplemental_figures/01_example_trajectories.py --overwrite
 .venv/bin/python scripts/05_supplemental_figures/00_method.py
 .venv/bin/python scripts/05_supplemental_figures/02_tk2020_n4_spaghetti.py
+.venv/bin/python scripts/05_supplemental_figures/03_kr2021_tandem_example.py
 ```
 
 Help for any stage:
@@ -156,8 +160,9 @@ Each figure script reads `results/<setting>/` and writes PDF and PNG files under
 |--------|--------|------------------|
 | `fig01_min_eigenvalue_timeseries.py` | Minimum-eigenvalue time series | `figures/min_eigenvalue_timeseries/` |
 | `fig02_spaghetti.py` | Minimum-eigenvalue spaghetti charts for every social model and kinetics | `figures/min_eigenvalue_spaghetti_by_model/` |
-| `fig03_min_eigenvector_lollipop.py` | Minimum-eigenvector components | `figures/min_eigenvector_components/` |
+| `fig03_min_eigenvector.py` | Minimum-eigenvector components | `figures/min_eigenvector_components/` |
 | `fig04_error_evolution.py` | Parameter-precision time series | `figures/error_plot/` |
+| `fig05_relative_distance.py` | KR2021 inter-individual distance frequency density | `figures/relative_distance/` |
 
 Shared options:
 
@@ -173,6 +178,7 @@ Shared options:
 | `01_example_trajectories.py` | A short example trajectory for every simulation model | `results/04_supplemental_figures/method/example_trajectories/` |
 | `00_method.py` | Minimum-eigenvalue trajectories for an identifiable sample and an unidentifiable sample | `results/04_supplemental_figures/method/` |
 | `02_tk2020_n4_spaghetti.py` | Minimum-eigenvalue spaghetti charts for TK2020 with N=4, using the identifiable (slope=1) guide | `results/04_supplemental_figures/tk2020_n4_spaghetti/<setting>/` |
+| `03_kr2021_tandem_example.py` | 10 s after burn-in of KR2021 Inertial N=2 in the reference individual's body frame: tandem sample 0041 vs. typical sample 0001 | `results/04_supplemental_figures/kr2021_tandem/` |
 
 `00_method.py` reads `results/optimum` from `result_time_series.h5` (or a result directory or `summary.json` that points at it). Its built-in sample paths are under `results/setting_1`. It does not take `--setting`.
 

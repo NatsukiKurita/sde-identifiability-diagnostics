@@ -26,11 +26,13 @@ Runs every stage after environment setup, in order:
   03  scripts/03_diagnostics/00_execute_diagnostics.py
   04  scripts/04_figures/fig01_min_eigenvalue_timeseries.py
       scripts/04_figures/fig02_spaghetti.py
-      scripts/04_figures/fig03_min_eigenvector_lollipop.py
+      scripts/04_figures/fig03_min_eigenvector.py
       scripts/04_figures/fig04_error_evolution.py
+      scripts/04_figures/fig05_relative_distance.py
   05  scripts/05_supplemental_figures/01_example_trajectories.py
       scripts/05_supplemental_figures/00_method.py
       scripts/05_supplemental_figures/02_tk2020_n4_spaghetti.py
+      scripts/05_supplemental_figures/03_kr2021_tandem_example.py
 
 --setting limits stages that accept it (simulation, estimation, diagnostics,
 and paper figures). Omitted means every setting in PARAMETER_SETTINGS.
@@ -141,12 +143,16 @@ run_py "04 figure: spaghetti" \
 	scripts/04_figures/fig02_spaghetti.py \
 	${setting_args[@]+"${setting_args[@]}"}
 
-run_py "04 figure: minimum eigenvector lollipop" \
-	scripts/04_figures/fig03_min_eigenvector_lollipop.py \
+run_py "04 figure: minimum eigenvector contributions" \
+	scripts/04_figures/fig03_min_eigenvector.py \
 	${setting_args[@]+"${setting_args[@]}"}
 
 run_py "04 figure: error evolution" \
 	scripts/04_figures/fig04_error_evolution.py \
+	${setting_args[@]+"${setting_args[@]}"}
+
+run_py "04 figure: KR2021 relative distance" \
+	scripts/04_figures/fig05_relative_distance.py \
 	${setting_args[@]+"${setting_args[@]}"}
 
 run_py "05 supplemental: example trajectories" \
@@ -158,5 +164,8 @@ run_py "05 supplemental: method comparison" \
 
 run_py "05 supplemental: TK2020 N=4 spaghetti" \
 	scripts/05_supplemental_figures/02_tk2020_n4_spaghetti.py
+
+run_py "05 supplemental: KR2021 tandem example" \
+	scripts/05_supplemental_figures/03_kr2021_tandem_example.py
 
 echo "==> Finished overall procedure."
