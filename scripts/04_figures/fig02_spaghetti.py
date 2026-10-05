@@ -57,4 +57,5 @@ if __name__ == "__main__":
 	run_for_settings(
 		plot_for_setting,
 		description="Spaghetti min-eigenvalue charts for every social model.",
+		apply_exclusions=False,
 	)

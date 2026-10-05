@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Fig 4: parameter-precision time series (max estimated/true ratio)."""
+"""Fig 4: parameter-precision time series (max absolute log estimated/true ratio)."""
 
 from __future__ import annotations
 
@@ -9,6 +9,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import matplotlib.pyplot as plt
+from matplotlib.ticker import FormatStrFormatter, LogLocator, NullFormatter
 import numpy as np
 import seaborn as sns
 
@@ -16,14 +17,13 @@ from _common import (
 	DASHED_LINESTYLE,
 	MAIN_TEXT_NUM_AGENT,
 	MIN_EIGENVALUE_BOTTOM_MODELS,
-	MIN_EIGENVALUE_LOG_FLOOR,
 	MIN_EIGENVALUE_TOP_MODELS,
-	_compute_parameter_ratio_bounds,
 	_load_truth_params,
+	compute_max_abs_log_parameter_error,
 	mean_std_series,
 	PaperRecord,
 	model_palette,
-	plot_mean_std_band,
+	plot_center_band,
 	read_json,
 	run_for_settings,
 	save_paper_figure,
@@ -51,24 +51,24 @@ def _record_parameter_accuracy_series(record: PaperRecord) -> tuple[np.ndarray, 
 		return None
 
 	times: list[float] = []
-	max_ratios: list[float] = []
+	errors: list[float] = []
 	for estimate in payload.get("estimates", []):
-		ratio_bounds = _compute_parameter_ratio_bounds(
+		error = compute_max_abs_log_parameter_error(
 			parameter_mapping,
 			estimate.get("best_params", {}),
 			truth_params,
 		)
-		if ratio_bounds is None:
+		if error is None:
 			continue
 		time_seconds = float(estimate.get("time_seconds", float("nan")))
-		max_ratio = float(ratio_bounds[1])
-		if np.isfinite(time_seconds) and np.isfinite(max_ratio):
+		# Zero error cannot enter the log-space (geometric) statistics.
+		if np.isfinite(time_seconds) and np.isfinite(error) and error > 0.0:
 			times.append(time_seconds)
-			max_ratios.append(max_ratio)
+			errors.append(error)
 
 	if len(times) < 2:
 		return None
-	return np.asarray(times, dtype=float), np.asarray(max_ratios, dtype=float)
+	return np.asarray(times, dtype=float), np.asarray(errors, dtype=float)
 
 
 def plot_precision_panel(
@@ -85,37 +85,32 @@ def plot_precision_panel(
 
 	for group in group_order:
 		cell = [record for record in filtered if record.group == group]
-		series = mean_std_series(
-			[
-				error_series
-				for record in cell
-				if (error_series := _record_parameter_accuracy_series(record)) is not None
-			]
-		)
+		# Geometric mean and geometric-std band: statistics are taken on log(error).
+		error_series = [
+			series
+			for record in cell
+			if (series := _record_parameter_accuracy_series(record)) is not None
+		]
+		series = mean_std_series([(times, np.log(errors)) for times, errors in error_series])
 		if series is None:
 			continue
-		times, mean_values, std_values = series
-		finite_mask = (
-			np.isfinite(times)
-			& np.isfinite(mean_values)
-			& np.isfinite(std_values)
-			& (mean_values > 0.0)
-		)
+		times, log_mean, log_std = series
+		finite_mask = np.isfinite(times) & np.isfinite(log_mean) & np.isfinite(log_std)
 		times = times[finite_mask]
-		mean_values = mean_values[finite_mask]
-		std_values = std_values[finite_mask]
+		log_mean = log_mean[finite_mask]
+		log_std = log_std[finite_mask]
 		if times.size < 2:
 			continue
 
 		present_groups.add(group)
 		tick_times.append(times)
-		plot_mean_std_band(
+		plot_center_band(
 			ax,
 			times,
-			mean_values,
-			std_values,
+			np.exp(log_mean),
+			np.exp(log_mean - log_std),
+			np.exp(log_mean + log_std),
 			palette.get(group, "#777777"),
-			clip_lower=MIN_EIGENVALUE_LOG_FLOOR if yscale == "log" else 0.0,
 		)
 
 	if not present_groups:
@@ -124,12 +119,15 @@ def plot_precision_panel(
 		return
 
 	ax.set_yscale(yscale)
-	ax.axhline(1.0, color="0.55", linestyle=DASHED_LINESTYLE, linewidth=1.0, zorder=0)
+	if yscale == "log":
+		ax.yaxis.set_major_locator(LogLocator(base=10.0, subs=(1.0, 2.0, 5.0)))
+		ax.yaxis.set_major_formatter(FormatStrFormatter("%g"))
+		ax.yaxis.set_minor_formatter(NullFormatter())
 	xticks = np.unique(np.round(np.concatenate(tick_times)))
 	ax.set_xticks(xticks)
 	ax.set_xlim(left=0.0)
 	ax.set_xlabel("Time (s)")
-	ax.set_ylabel(r"$\max(p_{\mathrm{opt}}/p_{\mathrm{true}})$")
+	ax.set_ylabel("Worst-case relative error")
 	ax.grid(True, which="both" if yscale == "log" else "major", linestyle=DASHED_LINESTYLE, alpha=0.25)
 	sns.despine(ax=ax)
 	fig.tight_layout()

@@ -23,6 +23,16 @@ from src.figure_config import set_paper_style
 from src.QMLE.builder import extract_params_from_toml
 from src.paths import DATA_ROOT, RESULTS_ROOT
 
+# Samples excluded from paper figures (except spaghetti charts), keyed by setting name.
+# KR2021 (Inertial, model_0006): min eigenvalue decreases linearly in time, which the theory
+# does not predict; likely the optimizer is trapped at a saddle point (selected by visual inspection).
+EXCLUDED_SAMPLES = {
+	"setting_1": (
+		"results_0006_N2_0004",
+		"results_0006_N2_0021",
+	),
+}
+
 PARAMETER_EPS = 1e-12
 RESULT_TIME_SERIES_FILENAME = "result_time_series.h5"
 KINETICS_MARKERS = {
@@ -489,12 +499,15 @@ def save_paper_figure(fig: plt.Figure, output_path: Path) -> None:
 	print(f"Saved {output_path}")
 
 
-def collect_paper_records(setting_dir: Path) -> list[PaperRecord]:
+def collect_paper_records(setting_dir: Path, *, apply_exclusions: bool = True) -> list[PaperRecord]:
 	setting_name = setting_dir.name
 	ledger_inverse = _load_ledger_inverse(setting_name)
+	excluded_samples = set(EXCLUDED_SAMPLES.get(setting_name, ())) if apply_exclusions else set()
 	records: list[PaperRecord] = []
 
 	for summary_path in sorted(setting_dir.glob("model_*/N*/results_*/summary.json")):
+		if summary_path.parent.name in excluded_samples:
+			continue
 		base_record = _load_sample_record(summary_path, ledger_inverse)
 		if base_record is None:
 			continue
@@ -594,26 +607,22 @@ def mean_std_series(
 	return grid, mean_values, std_values
 
 
-def plot_mean_std_band(
+def plot_center_band(
 	ax: plt.Axes,
 	times: np.ndarray,
-	mean_values: np.ndarray,
-	std_values: np.ndarray,
+	center_values: np.ndarray,
+	lower: np.ndarray,
+	upper: np.ndarray,
 	color,
 	*,
 	linestyle: str | tuple = "-",
 	marker: str | None = "o",
 	band_alpha: float = 0.22,
-	clip_lower: float | None = None,
 ) -> None:
-	lower = mean_values - std_values
-	upper = mean_values + std_values
-	if clip_lower is not None:
-		lower = np.maximum(clip_lower, lower)
 	ax.fill_between(times, lower, upper, color=color, alpha=band_alpha, linewidth=0, zorder=1)
 	ax.plot(
 		times,
-		mean_values,
+		center_values,
 		color=color,
 		linestyle=linestyle,
 		linewidth=1.9,
@@ -768,7 +777,13 @@ def parse_common_args(description: str) -> argparse.Namespace:
 	return add_common_arguments(parser).parse_args()
 
 
-def run_for_settings(plot_setting, args: argparse.Namespace | None = None, *, description: str = "") -> None:
+def run_for_settings(
+	plot_setting,
+	args: argparse.Namespace | None = None,
+	*,
+	description: str = "",
+	apply_exclusions: bool = True,
+) -> None:
 	if args is None:
 		args = parse_common_args(description)
 	configure_plot_style()
@@ -776,7 +791,7 @@ def run_for_settings(plot_setting, args: argparse.Namespace | None = None, *, de
 	if not setting_dirs:
 		raise FileNotFoundError(f"No setting directories found under {args.results_root}")
 	for setting_dir in setting_dirs:
-		records = collect_paper_records(setting_dir)
+		records = collect_paper_records(setting_dir, apply_exclusions=apply_exclusions)
 		if not records:
 			print(f"No completed paper-figure records found under {setting_dir}; skipping.")
 			continue

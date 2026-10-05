@@ -47,6 +47,7 @@ INSET_BOUNDS = (
 	(0.12, 0.15, 0.38, 0.5),
 	(0.6, 0.15, 0.38, 0.5),
 )
+INSET_LINEWIDTH = 0.5
 
 def _min_eigenvalue_plot_series(
 	records: list[PaperRecord],
@@ -79,7 +80,7 @@ def _add_zoom_insets(
 		inset = ax.inset_axes(bounds)
 		for line_kinetics, times, values, line_kwargs in plotted_lines:
 			if line_kinetics == kinetics:
-				inset.plot(times, values, **line_kwargs)
+				inset.plot(times, values, **{**line_kwargs, "linewidth": INSET_LINEWIDTH})
 		inset.set_xlim(INSET_START_SECONDS, right)
 		inset.set_ylim(ylim)
 		inset.ticklabel_format(axis="y", style="sci", scilimits=(0, 0))
