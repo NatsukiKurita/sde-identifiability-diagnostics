@@ -138,9 +138,9 @@ def _draw_axis_guide(
 	ax.plot(
 		x_values,
 		y_values,
-		color="0.55",
+		color="0.25",
 		linestyle=":",
-		linewidth=1.0,
+		linewidth=1.2,
 		zorder=0,
 		label="_nolegend_",
 		scalex=False,
@@ -150,7 +150,7 @@ def _draw_axis_guide(
 		label_x,
 		label_y,
 		label,
-		color="0.45",
+		color="0.2",
 		fontsize=9,
 		ha="center",
 		va="bottom",
@@ -307,19 +307,22 @@ MIN_EIGENVALUE_BOTTOM_MODELS = ["KR2021", "TK2020"]
 SPECIAL_MIN_EIGENVALUE_SERIES = {
 	("KR2021", "Inertial"): "results_0006_N2_0020",
 }
-MIN_EIGENVALUE_PLOT_SECONDS = 100.0
+MIN_EIGENVALUE_PLOT_SECONDS = 60.0
 MIN_EIGENVALUE_PLOT_INTERVAL_SECONDS = 1/24
 MIN_EIGENVALUE_LOG_FLOOR = 1e-12
+SPAGHETTI_PLOT_SECONDS = 300.0
 SPAGHETTI_XSCALE = "log"
 SPAGHETTI_YSCALE = "symlog"
 # |value| < linthresh is drawn linearly on spaghetti y axes.
-SPAGHETTI_SYMLOG_LINTHRESH_Y = 1
-SPAGHETTI_SYMLOG_LINSCALE_Y = 0.7
+SPAGHETTI_SYMLOG_LINTHRESH_Y = 0.1
+SPAGHETTI_SYMLOG_LINSCALE_Y = 0.25
 SPAGHETTI_GUIDE_X_START = 5.0
 SPAGHETTI_GUIDE_X_END = 100.0
 SPAGHETTI_GUIDE_Y_TOP_DIVISOR = 1.5
 # Fraction of the visible axis height by which the slope=1 guide is shifted down.
 SPAGHETTI_GUIDE_AXES_DOWN_SHIFT = 0.2
+# Fraction of the visible axis height by which the sqrt(T) log T guide is shifted up.
+SPAGHETTI_SQRT_GUIDE_AXES_UP_SHIFT = 0.04
 DASHED_LINESTYLE = (0, (2.0, 0.8))
 KINETICS_PLOT_LINESTYLES = {
 	**KINETICS_LINESTYLES,
@@ -645,7 +648,7 @@ def prepare_min_eigenvalue_line(
 	xscale: str,
 	yscale: str,
 ) -> tuple[np.ndarray, np.ndarray]:
-	finite_mask = np.isfinite(times) & np.isfinite(values) & (times <= MIN_EIGENVALUE_PLOT_SECONDS)
+	finite_mask = np.isfinite(times) & np.isfinite(values) & (times <= SPAGHETTI_PLOT_SECONDS)
 	if xscale == "log":
 		finite_mask &= times > 0.0
 	times = times[finite_mask]
@@ -681,7 +684,7 @@ def style_min_eigenvalue_axis(
 	_apply_axis_scale(ax, "y", yscale)
 	if x_values:
 		left = max(min(float(np.nanmin(times)) for times in x_values), np.finfo(float).tiny) if xscale == "log" else 0.0
-		ax.set_xlim(left=left, right=MIN_EIGENVALUE_PLOT_SECONDS)
+		ax.set_xlim(left=left, right=SPAGHETTI_PLOT_SECONDS)
 	if yscale == "log" and y_values:
 		finite_mins = [float(np.nanmin(values)) for values in y_values if np.any(np.isfinite(values))]
 		if finite_mins:
@@ -698,7 +701,9 @@ def style_min_eigenvalue_axis(
 		add_slope_one_guide(ax, **guide_kwargs)
 		_shift_artists_down(ax, ax.lines[n_lines:], ax.texts[n_texts:], SPAGHETTI_GUIDE_AXES_DOWN_SHIFT)
 	else:
+		n_lines, n_texts = len(ax.lines), len(ax.texts)
 		add_sqrt_x_log_x_guide(ax, **guide_kwargs)
+		_shift_artists_down(ax, ax.lines[n_lines:], ax.texts[n_texts:], -SPAGHETTI_SQRT_GUIDE_AXES_UP_SHIFT)
 	ax.set_xlabel("Time (s)")
 	ax.set_ylabel(r"$\lambda^{\mathrm{min}}$ (Symlog-scaled)")
 	ax.grid(True, which="both", linestyle=DASHED_LINESTYLE, alpha=0.25)
@@ -712,7 +717,7 @@ def plot_spaghetti_min_eigenvalue(
 	figsize: tuple[float, float],
 	color,
 	title: str | None = None,
-	line_alpha: float = 0.3,
+	line_alpha: float = 0.25,
 	linewidth: float = 0.3,
 ) -> None:
 	fig, ax = plt.subplots(figsize=figsize)

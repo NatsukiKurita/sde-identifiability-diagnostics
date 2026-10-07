@@ -32,6 +32,7 @@ MODEL = "KR2021"
 MODEL_ID = "0006"
 NUM_AGENTS = 2
 TANDEM_SAMPLE_ID = "0041"
+SECOND_TANDEM_SAMPLE_ID = "0038"
 TYPICAL_SAMPLE_ID = "0001"
 BURN_IN_SECONDS = float(MasterConstants.BURN_IN_SECONDS)
 DURATION_SECONDS = 10.0
@@ -40,10 +41,12 @@ FIGSIZE = (5.2, 5.2)
 AXIS_LIMIT = 2.0
 
 
-def _partner_in_body_frame(h5_path: Path, dt: float, d_eq: float) -> np.ndarray:
-	start = int(round(BURN_IN_SECONDS / dt))
-	stop = start + int(round(DURATION_SECONDS / dt)) + 1
+def _partner_in_body_frame(h5_path: Path, dt: float, d_eq: float, *, use_last_window: bool = False) -> np.ndarray:
+	n_window = int(round(DURATION_SECONDS / dt)) + 1
 	with h5py.File(h5_path, "r") as f:
+		n_total = f["positions"].shape[0]
+		start = n_total - n_window if use_last_window else int(round(BURN_IN_SECONDS / dt))
+		stop = start + n_window
 		positions = np.asarray(f["positions"][start:stop], dtype=float)
 		orientations = np.asarray(f["orientations"][start:stop], dtype=float)
 
@@ -68,18 +71,19 @@ def main() -> None:
 	sample_dir = model_dir / "ground_truth" / f"N{NUM_AGENTS}"
 
 	samples = (
-		(TYPICAL_SAMPLE_ID, "Typical", "0.6", "o"),
-		(TANDEM_SAMPLE_ID, "Tandem", model_palette([MODEL])[MODEL], "o"),
+		(TYPICAL_SAMPLE_ID, "Typical", "0.6", "o", False),
+		(TANDEM_SAMPLE_ID, "Tandem", model_palette([MODEL])[MODEL], "o", False),
+		(SECOND_TANDEM_SAMPLE_ID, "Tandem, last 10 s", model_palette(["TK2020"])["TK2020"], "s", True),
 	)
 
 	fig, ax = plt.subplots(figsize=FIGSIZE)
 	ring = np.linspace(0.0, 2.0 * np.pi, 361)
-	ax.plot(np.cos(ring), np.sin(ring), color="0.55", linestyle=DASHED_LINESTYLE, linewidth=0.9, zorder=1)
-	ax.text(np.cos(np.pi / 4), np.sin(np.pi / 4), r"  $d = d^{\mathrm{eq}}$", color="0.45", fontsize=9, ha="left", va="bottom")
+	ax.plot(np.cos(ring), np.sin(ring), color="0.25", linestyle=DASHED_LINESTYLE, linewidth=1.1, zorder=1)
+	ax.text(np.cos(np.pi / 4), np.sin(np.pi / 4), r"  $d = d^{\mathrm{eq}}$", color="0.2", fontsize=9, ha="left", va="bottom")
 
-	for sample_id, label, color, marker in samples:
+	for sample_id, label, color, marker, use_last_window in samples:
 		h5_path = sample_dir / f"simulation_{MODEL_ID}_N{NUM_AGENTS}_{sample_id}.h5"
-		partner = _partner_in_body_frame(h5_path, dt, d_eq)
+		partner = _partner_in_body_frame(h5_path, dt, d_eq, use_last_window=use_last_window)
 		ax.plot(
 			partner[:, 0],
 			partner[:, 1],
@@ -108,7 +112,7 @@ def main() -> None:
 	ax.set_xlabel(r"Forward position of partner / $d^{\mathrm{eq}}$")
 	ax.set_ylabel(r"Lateral position of partner / $d^{\mathrm{eq}}$")
 	ax.grid(True, linestyle=DASHED_LINESTYLE, alpha=0.25)
-	ax.legend(frameon=False, loc="upper center", bbox_to_anchor=(0.5, 1.14), ncol=2, fontsize=9)
+	ax.legend(frameon=False, loc="upper center", bbox_to_anchor=(0.5, 1.16), ncol=2, fontsize=9)
 	sns.despine(ax=ax)
 	fig.tight_layout()
 	save_paper_figure(fig, OUTPUT_PATH)

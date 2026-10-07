@@ -35,17 +35,18 @@ from _common import (
 
 # Adjust this figure size independently.
 FIGSIZE = (6.4, 4.0)
-INSET_START_SECONDS = 10.0
+INSET_START_SECONDS = 30.0
+INSET_END_SECONDS = 60.0
 # (kinetics, ylim) per inset, drawn left to right.
 BOTTOM_INSET_YLIMS = {
 	"TK2020": (
-		("Inertial", (-6e-8, 6e-8)),
-		("Overdamped", (-1.5e-9, 1.5e-9)),
+		("Inertial", (-5e-8, 5e-8)),
+		("Overdamped", (-5e-10, 5e-10)),
 	),
 }
 INSET_BOUNDS = (
-	(0.12, 0.15, 0.38, 0.5),
-	(0.6, 0.15, 0.38, 0.5),
+	(0.1, 0.14, 0.41, 0.64),
+	(0.58, 0.14, 0.41, 0.64),
 )
 INSET_LINEWIDTH = 0.5
 
@@ -81,7 +82,7 @@ def _add_zoom_insets(
 		for line_kinetics, times, values, line_kwargs in plotted_lines:
 			if line_kinetics == kinetics:
 				inset.plot(times, values, **{**line_kwargs, "linewidth": INSET_LINEWIDTH})
-		inset.set_xlim(INSET_START_SECONDS, right)
+		inset.set_xlim(INSET_START_SECONDS, min(INSET_END_SECONDS, right))
 		inset.set_ylim(ylim)
 		inset.ticklabel_format(axis="y", style="sci", scilimits=(0, 0))
 		inset.tick_params(labelsize=7)
