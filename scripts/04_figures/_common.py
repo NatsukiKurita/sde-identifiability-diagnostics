@@ -295,7 +295,13 @@ def add_split_line_legends(
 
 
 MAIN_TEXT_NUM_AGENT = 2
-EIGENVECTOR_MODELS = ["KR2021", "TK2020"]
+# (x parameter, y parameter, theoretical degeneracy relation) for N=2:
+# "difference": x - y = const (TK2020: cohesion and separation act along the same unit vector),
+# "product": x * y = const (KR2021: tanh(m(d - d_eq)) ~ m(d - d_eq) in the linear regime).
+DEGENERACY_PAIRS = {
+	"TK2020": ("Social.k_coh", "Social.k_sep", "difference"),
+	"KR2021": ("Social.k_pos", "Social.m", "product"),
+}
 MIN_EIGENVALUE_TOP_MODELS = ["Null", "G2012", "KV"]
 MIN_EIGENVALUE_BOTTOM_MODELS = ["KR2021", "TK2020"]
 SPECIAL_MIN_EIGENVALUE_SERIES = {

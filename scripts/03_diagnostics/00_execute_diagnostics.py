@@ -5,13 +5,16 @@ For each estimated trajectory under ``results/<setting>/``,
 this script:
 
 1. loads the optimal parameters written by ``02_estimation``,
-2. computes the cumulative Hessian at the optimum and at truth parameters,
-3. stores the sampled Hessian and minimum-eigenvalue time series.
+2. computes the cumulative log-parameter Hessian at the optimum and at truth parameters,
+   i.e. the exact Hessian w.r.t. log(p): diag(p) H diag(p) + diag(p * grad),
+3. stores the sampled Hessian, gradient, and minimum-eigenvalue time series.
+
+The log-parameter Hessian may be indefinite away from a stationary point.
 
 Outputs (per model / agent count / simulation):
 - updates ``summary.json`` with the minimum and maximum eigenvalues at the optimum
-- ``result_time_series.h5`` — Hessian and minimum-eigenvalue time series under
-  ``results/optimum`` and ``results/truth``
+- ``result_time_series.h5`` — log-parameter Hessian, cumulative gradient (w.r.t. p),
+  and minimum-eigenvalue time series under ``results/optimum`` and ``results/truth``
 """
 
 import argparse
@@ -77,23 +80,34 @@ def _compute_hessian_time_series(
 		return loss_fn_stepwise(unravel_fn(flat_params), states_t, state_next, aux_data_t)
 
 	hessian_fn = jax.jit(jax.hessian(flat_step_loss_fn))
+	grad_fn = jax.jit(jax.grad(flat_step_loss_fn))
 	step_hessians = jax.vmap(hessian_fn, in_axes=(None, 0, 0, aux_axes))(
 		flat_params,
 		states,
 		states_next,
 		aux_data,
 	)
+	step_gradients = jax.vmap(grad_fn, in_axes=(None, 0, 0, aux_axes))(
+		flat_params,
+		states,
+		states_next,
+		aux_data,
+	)
 
-	# Nondimensionalize the Hessian
+	# Exact Hessian w.r.t. log-parameters: d^2L/dlog(p_i)dlog(p_j) = p_i p_j H_ij + delta_ij p_i g_i.
+	# The gradient term does not vanish away from a stationary point (e.g. at truth).
 	weights = flat_params[jnp.newaxis, :] * flat_params[:, jnp.newaxis]
-	cumulative_hessians = jnp.cumsum(step_hessians * weights, axis=0)
+	cumulative_gradients = jnp.cumsum(step_gradients, axis=0)
+	cumulative_hessians = jnp.cumsum(step_hessians, axis=0) * weights
+	cumulative_hessians = cumulative_hessians + jax.vmap(jnp.diag)(cumulative_gradients * flat_params)
 
 	sampled_hessians = np.asarray(cumulative_hessians[time_indices])
+	sampled_gradients = np.asarray(cumulative_gradients[time_indices])
 	min_eigenvalues = np.asarray(
 		[float(np.min(np.linalg.eigvalsh(hessian))) for hessian in sampled_hessians],
 		dtype=float,
 	)
-	return sampled_hessians, min_eigenvalues
+	return sampled_hessians, sampled_gradients, min_eigenvalues
 
 
 def _restore_params(saved_params, template_tree):
@@ -204,7 +218,7 @@ def run_diagnostics(
 
 	series = {}
 	for label, params in (("optimum", best_params), ("truth", truth_params)):
-		print(f"Calculating Hessian time series (dimensionless) at {label} parameters...")
+		print(f"Calculating log-parameter Hessian time series at {label} parameters...")
 		series[label] = _compute_hessian_time_series(
 			loss_fn_stepwise=loss_fn_stepwise,
 			params=params,
@@ -230,9 +244,10 @@ def run_diagnostics(
 		f.attrs["interval_steps"] = int(interval_steps)
 		f.create_dataset("time_seconds", data=np.asarray(time_seconds, dtype=float))
 		f.create_dataset("time_indices", data=np.asarray(time_indices, dtype=int))
-		for label, (hessians, min_eigenvalues) in series.items():
+		for label, (hessians, gradients, min_eigenvalues) in series.items():
 			group = f.create_group(f"results/{label}")
 			group.create_dataset("hessians", data=hessians)
+			group.create_dataset("gradients", data=gradients)
 			group.create_dataset("min_eigenvalues", data=min_eigenvalues)
 
 	print(f"Results saved to {result_dir}\n")
@@ -296,7 +311,7 @@ def run_all_estimations(
 
 
 def main():
-	parser = argparse.ArgumentParser(description="Compute Hessian and minimum-eigenvalue time series at the optimum and truth.")
+	parser = argparse.ArgumentParser(description="Compute log-parameter Hessian and minimum-eigenvalue time series at the optimum and truth.")
 	parser.add_argument(
 		"--sim_root",
 		type=str,

@@ -18,6 +18,7 @@ from _common import (
 	MAIN_TEXT_NUM_AGENT,
 	MIN_EIGENVALUE_BOTTOM_MODELS,
 	MIN_EIGENVALUE_TOP_MODELS,
+	_draw_axis_guide,
 	_load_truth_params,
 	compute_max_abs_log_parameter_error,
 	mean_std_series,
@@ -31,6 +32,12 @@ from _common import (
 
 # Adjust this figure size independently.
 FIGSIZE = (6.4, 4.0)
+# Slope -1/2 guide: x extent as fractions of the (log) x range; its right end sits
+# GUIDE_ABOVE_DATA_FACTOR times above the data maximum.
+GUIDE_X_START_FRACTION = 0.1
+GUIDE_X_END_FRACTION = 0.9
+GUIDE_ABOVE_DATA_FACTOR = 1.3
+GUIDE_TOP_HEADROOM = 1.15
 ERROR_PLOT_KINETICS_DIRS = (
 	("Inertial", "Inertial"),
 	("Overdamped", "Overdamped"),
@@ -71,12 +78,26 @@ def _record_parameter_accuracy_series(record: PaperRecord) -> tuple[np.ndarray, 
 	return np.asarray(times, dtype=float), np.asarray(errors, dtype=float)
 
 
+def add_inverse_sqrt_guide(ax: plt.Axes) -> None:
+	"""Slope -1/2 reference line (T^{-1/2} convergence) placed above the data; extends the y range if needed."""
+	x_left, x_right = ax.get_xlim()
+	y_bottom, y_top = ax.get_ylim()
+	x_start = x_left * (x_right / x_left) ** GUIDE_X_START_FRACTION
+	x_end = x_left * (x_right / x_left) ** GUIDE_X_END_FRACTION
+	x_values = np.geomspace(x_start, x_end, 64)
+	y_end = float(ax.dataLim.y1) * GUIDE_ABOVE_DATA_FACTOR
+	y_values = y_end * (x_values / x_end) ** -0.5
+	label_x = float(np.sqrt(x_start * x_end))
+	label_y = y_end * (label_x / x_end) ** -0.5 * 1.15
+	ax.set_xlim(x_left, x_right)
+	ax.set_ylim(y_bottom, max(y_top, float(y_values[0]) * GUIDE_TOP_HEADROOM))
+	_draw_axis_guide(ax, x_values, y_values, "slope=$-1/2$", label_x, label_y)
+
+
 def plot_precision_panel(
 	filtered: list[PaperRecord],
 	group_order: list[str],
 	output_path: Path,
-	*,
-	yscale: str,
 ) -> None:
 	palette = model_palette(group_order)
 	fig, ax = plt.subplots(figsize=FIGSIZE)
@@ -95,7 +116,7 @@ def plot_precision_panel(
 		if series is None:
 			continue
 		times, log_mean, log_std = series
-		finite_mask = np.isfinite(times) & np.isfinite(log_mean) & np.isfinite(log_std)
+		finite_mask = np.isfinite(times) & (times > 0.0) & np.isfinite(log_mean) & np.isfinite(log_std)
 		times = times[finite_mask]
 		log_mean = log_mean[finite_mask]
 		log_std = log_std[finite_mask]
@@ -118,17 +139,18 @@ def plot_precision_panel(
 		plt.close(fig)
 		return
 
-	ax.set_yscale(yscale)
-	if yscale == "log":
-		ax.yaxis.set_major_locator(LogLocator(base=10.0, subs=(1.0, 2.0, 5.0)))
-		ax.yaxis.set_major_formatter(FormatStrFormatter("%g"))
-		ax.yaxis.set_minor_formatter(NullFormatter())
-	xticks = np.unique(np.round(np.concatenate(tick_times)))
-	ax.set_xticks(xticks)
-	ax.set_xlim(left=0.0)
+	ax.set_xscale("log")
+	ax.set_yscale("log")
+	for axis in (ax.xaxis, ax.yaxis):
+		axis.set_major_locator(LogLocator(base=10.0, subs=(1.0, 2.0, 5.0)))
+		axis.set_major_formatter(FormatStrFormatter("%g"))
+		axis.set_minor_formatter(NullFormatter())
+	all_times = np.concatenate(tick_times)
+	ax.set_xlim(float(np.min(all_times)), float(np.max(all_times)))
+	add_inverse_sqrt_guide(ax)
 	ax.set_xlabel("Time (s)")
 	ax.set_ylabel("Worst relative error")
-	ax.grid(True, which="both" if yscale == "log" else "major", linestyle=DASHED_LINESTYLE, alpha=0.25)
+	ax.grid(True, which="both", linestyle=DASHED_LINESTYLE, alpha=0.25)
 	sns.despine(ax=ax)
 	fig.tight_layout()
 	save_paper_figure(fig, output_path)
@@ -152,13 +174,11 @@ def plot_for_setting(setting_dir: Path, records: list[PaperRecord], _args) -> No
 			filtered,
 			MIN_EIGENVALUE_TOP_MODELS,
 			output_dir / "error_plot_identifiable.pdf",
-			yscale="linear",
 		)
 		plot_precision_panel(
 			filtered,
 			MIN_EIGENVALUE_BOTTOM_MODELS,
 			output_dir / "error_plot_unidentifiable.pdf",
-			yscale="log",
 		)
 
 

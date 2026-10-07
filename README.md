@@ -79,7 +79,7 @@ After setup, `./run_overall_procedure.sh` runs every analysis stage in order. `-
 | 03 | `scripts/03_diagnostics/00_execute_diagnostics.py` | Hessian and eigenvalue diagnostics at the saved optimum and at the truth |
 | 04 | `scripts/04_figures/fig01_min_eigenvalue_timeseries.py` | Minimum-eigenvalue time series |
 | 04 | `scripts/04_figures/fig02_spaghetti.py` | Spaghetti charts of the minimum eigenvalue |
-| 04 | `scripts/04_figures/fig03_min_eigenvector.py` | Contributions to the minimum eigenvector |
+| 04 | `scripts/04_figures/fig03_degeneracy_scatter.py` | 2D scatter of estimates on the degenerate parameter pair (TK2020, KR2021) |
 | 04 | `scripts/04_figures/fig04_error_evolution.py` | Parameter-precision time series |
 | 04 | `scripts/04_figures/fig05_relative_distance.py` | KR2021 inter-individual distance distribution after burn-in |
 | 05 | `scripts/05_supplemental_figures/01_example_trajectories.py` | Example trajectories |
@@ -98,7 +98,7 @@ After setup, `./run_overall_procedure.sh` runs every analysis stage in order. `-
 .venv/bin/python scripts/03_diagnostics/00_execute_diagnostics.py --setting setting_1 --overwrite
 .venv/bin/python scripts/04_figures/fig01_min_eigenvalue_timeseries.py --setting setting_1
 .venv/bin/python scripts/04_figures/fig02_spaghetti.py --setting setting_1
-.venv/bin/python scripts/04_figures/fig03_min_eigenvector.py --setting setting_1
+.venv/bin/python scripts/04_figures/fig03_degeneracy_scatter.py --setting setting_1
 .venv/bin/python scripts/04_figures/fig04_error_evolution.py --setting setting_1
 .venv/bin/python scripts/04_figures/fig05_relative_distance.py --setting setting_1
 .venv/bin/python scripts/05_supplemental_figures/01_example_trajectories.py --overwrite
@@ -148,7 +148,7 @@ Help for any stage:
 
 `00_execute_diagnostics.py` evaluates the saved optimum. It updates `summary.json` with the minimum and maximum eigenvalues and writes:
 
-- `result_time_series.h5` — shared `time_seconds` / `time_indices`, plus `hessians` (cumulative, dimensionless) and `min_eigenvalues` time series under `results/optimum` and `results/truth`
+- `result_time_series.h5` — shared `time_seconds` / `time_indices`, plus `hessians` (cumulative Hessian w.r.t. log-parameters, `diag(p) H diag(p) + diag(p * grad)`; may be indefinite), `gradients` (cumulative gradient w.r.t. the raw parameters), and `min_eigenvalues` time series under `results/optimum` and `results/truth`
 
 Options match estimation: `--sim_root`, `--setting`, and `--overwrite`.
 
@@ -160,7 +160,7 @@ Each figure script reads `results/<setting>/` and writes PDF and PNG files under
 |--------|--------|------------------|
 | `fig01_min_eigenvalue_timeseries.py` | Minimum-eigenvalue time series | `figures/min_eigenvalue_timeseries/` |
 | `fig02_spaghetti.py` | Minimum-eigenvalue spaghetti charts for every social model and kinetics | `figures/min_eigenvalue_spaghetti_by_model/` |
-| `fig03_min_eigenvector.py` | Minimum-eigenvector components | `figures/min_eigenvector_components/` |
+| `fig03_degeneracy_scatter.py` | Estimates on the degenerate parameter pair with the theoretical manifold and the ground truth | `figures/degeneracy_scatter/` |
 | `fig04_error_evolution.py` | Parameter-precision time series | `figures/error_plot/` |
 | `fig05_relative_distance.py` | KR2021 inter-individual distance frequency density | `figures/relative_distance/` |
 
