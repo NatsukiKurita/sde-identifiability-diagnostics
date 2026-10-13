@@ -96,9 +96,9 @@ def plot_degeneracy_scatter(records: list[PaperRecord], model: str, output_path:
 	fig, ax = plt.subplots(figsize=FIGSIZE)
 	fig.subplots_adjust(left=0.17, right=0.96, bottom=0.14, top=0.80)
 
-	# Estimates spread over orders of magnitude along the manifold; log axes need positive values.
+	# KR2021 estimates spread over orders of magnitude along the manifold; log axes need positive values.
 	all_points = np.vstack([*point_arrays.values(), [[x_true, y_true]]])
-	use_log = bool(np.all(all_points > 0.0))
+	use_log = model != "TK2020" and bool(np.all(all_points > 0.0))
 	if use_log:
 		ax.set_xscale("log")
 		ax.set_yscale("log")

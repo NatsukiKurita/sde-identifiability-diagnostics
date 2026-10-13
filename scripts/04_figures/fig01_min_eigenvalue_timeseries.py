@@ -19,6 +19,7 @@ from _common import (
 	MIN_EIGENVALUE_BOTTOM_MODELS,
 	MIN_EIGENVALUE_LOG_FLOOR,
 	MIN_EIGENVALUE_PLOT_SECONDS,
+	MIN_EIGENVALUE_PLOT_START_SECONDS,
 	MIN_EIGENVALUE_TOP_MODELS,
 	SPECIAL_MIN_EIGENVALUE_SERIES,
 	downsample_min_eigenvalue_series,
@@ -26,70 +27,37 @@ from _common import (
 	PaperRecord,
 	add_slope_one_guide,
 	add_split_line_legends,
+	linestyle_for_linewidth,
 	model_palette,
 	ordered_kinetics_from_set,
 	record_min_eigenvalue_series,
 	run_for_settings,
 	save_paper_figure,
+	split_kr2021_regimes,
 )
 
 # Adjust this figure size independently.
 FIGSIZE = (6.4, 4.0)
-INSET_START_SECONDS = 30.0
-INSET_END_SECONDS = 60.0
-# (kinetics, ylim) per inset, drawn left to right.
-BOTTOM_INSET_YLIMS = {
-	"TK2020": (
-		("Inertial", (-5e-8, 5e-8)),
-		("Overdamped", (-5e-10, 5e-10)),
-	),
-}
-INSET_BOUNDS = (
-	(0.1, 0.14, 0.41, 0.64),
-	(0.58, 0.14, 0.41, 0.64),
-)
-INSET_LINEWIDTH = 0.5
+# Early transients reach about -47 and would hide the late-time behaviour.
+UNIDENTIFIABLE_YLIM = (-3.0, 7.0)
+
 
 def _min_eigenvalue_plot_series(
 	records: list[PaperRecord],
 	group: str,
 	kinetics: str,
 ) -> tuple[np.ndarray, np.ndarray] | None:
-	special_sample_name = SPECIAL_MIN_EIGENVALUE_SERIES.get((group, kinetics))
-	if special_sample_name is not None:
-		for record in records:
-			if record.base.sample_name == special_sample_name:
-				series = record_min_eigenvalue_series(record)
-				break
-		else:
-			series = mean_series([record_min_eigenvalue_series(record) for record in records])
+	special_sample_names = SPECIAL_MIN_EIGENVALUE_SERIES.get((group, kinetics), ())
+	for record in records:
+		if record.base.sample_name in special_sample_names:
+			series = record_min_eigenvalue_series(record)
+			break
 	else:
 		series = mean_series([record_min_eigenvalue_series(record) for record in records])
 
 	if series is None:
 		return None
 	return downsample_min_eigenvalue_series(*series)
-
-
-def _add_zoom_insets(
-	ax,
-	plotted_lines: list[tuple[str, np.ndarray, np.ndarray, dict]],
-	inset_specs: tuple[tuple[str, tuple[float, float]], ...],
-) -> None:
-	right = ax.get_xlim()[1]
-	for bounds, (kinetics, ylim) in zip(INSET_BOUNDS, inset_specs):
-		inset = ax.inset_axes(bounds)
-		for line_kinetics, times, values, line_kwargs in plotted_lines:
-			if line_kinetics == kinetics:
-				inset.plot(times, values, **{**line_kwargs, "linewidth": INSET_LINEWIDTH})
-		inset.set_xlim(INSET_START_SECONDS, min(INSET_END_SECONDS, right))
-		inset.set_ylim(ylim)
-		inset.ticklabel_format(axis="y", style="sci", scilimits=(0, 0))
-		inset.tick_params(labelsize=7)
-		inset.yaxis.get_offset_text().set_fontsize(7)
-		inset.axhline(0.0, color="#999999", linewidth=0.6, zorder=0)
-		inset.grid(True, linestyle=DASHED_LINESTYLE, alpha=0.25)
-		inset.set_title(kinetics, fontsize=8)
 
 
 def plot_min_eigenvalue_timeseries_panel(
@@ -99,7 +67,7 @@ def plot_min_eigenvalue_timeseries_panel(
 	*,
 	xscale: str,
 	yscale: str,
-	inset_specs: tuple[tuple[str, tuple[float, float]], ...] | None = None,
+	ylim: tuple[float, float] | None = None,
 ) -> None:
 	kinetics_order = ordered_kinetics_from_set({record.kinetics for record in filtered})
 	palette = model_palette(group_order)
@@ -107,10 +75,8 @@ def plot_min_eigenvalue_timeseries_panel(
 	fig, ax = plt.subplots(figsize=FIGSIZE)
 	present_groups: set[str] = set()
 	present_kinetics: set[str] = set()
-	x_values: list[np.ndarray] = []
 	y_values: list[np.ndarray] = []
 	recoveries: list[tuple[float, float, tuple[float, float, float]]] = []
-	plotted_lines: list[tuple[str, np.ndarray, np.ndarray, dict]] = []
 	for group in group_order:
 		for kinetics in kinetics_order:
 			cell = [
@@ -122,9 +88,12 @@ def plot_min_eigenvalue_timeseries_panel(
 			if series is None:
 				continue
 			times, values = series
-			finite_mask = np.isfinite(times) & np.isfinite(values) & (times <= MIN_EIGENVALUE_PLOT_SECONDS)
-			if xscale == "log":
-				finite_mask &= times > 0.0
+			finite_mask = (
+				np.isfinite(times)
+				& np.isfinite(values)
+				& (times >= MIN_EIGENVALUE_PLOT_START_SECONDS)
+				& (times <= MIN_EIGENVALUE_PLOT_SECONDS)
+			)
 			times = times[finite_mask]
 			values = values[finite_mask]
 			if yscale == "log":
@@ -144,7 +113,6 @@ def plot_min_eigenvalue_timeseries_panel(
 
 			present_groups.add(group)
 			present_kinetics.add(kinetics)
-			x_values.append(times)
 			y_values.append(values[np.isfinite(values)])
 			linewidth = 1.15
 			linestyle = KINETICS_PLOT_LINESTYLES.get(kinetics, ":")
@@ -152,14 +120,14 @@ def plot_min_eigenvalue_timeseries_panel(
 			if group == "TK2020" and kinetics == "Inertial":
 				linewidth = 1.15
 				alpha = 0.75
-			line_kwargs = dict(
+			ax.plot(
+				times,
+				values,
 				color=palette.get(group, "#777777"),
-				linestyle=linestyle,
+				linestyle=linestyle_for_linewidth(linestyle, linewidth),
 				linewidth=linewidth,
 				alpha=alpha,
 			)
-			ax.plot(times, values, **line_kwargs)
-			plotted_lines.append((kinetics, times, values, line_kwargs))
 
 	if not present_groups:
 		print(f"[{output_path.parent.parent.name}] No minimum-eigenvalue lines to plot; skipping.")
@@ -168,9 +136,7 @@ def plot_min_eigenvalue_timeseries_panel(
 
 	ax.set_xscale(xscale)
 	ax.set_yscale(yscale)
-	if x_values:
-		left = max(min(float(np.nanmin(times)) for times in x_values), np.finfo(float).tiny) if xscale == "log" else 0.0
-		ax.set_xlim(left=left, right=MIN_EIGENVALUE_PLOT_SECONDS)
+	ax.set_xlim(left=MIN_EIGENVALUE_PLOT_START_SECONDS, right=MIN_EIGENVALUE_PLOT_SECONDS)
 	if yscale == "log" and y_values:
 		bottom = max(MIN_EIGENVALUE_LOG_FLOOR, min(float(np.nanmin(values)) for values in y_values))
 		ax.set_ylim(bottom=bottom)
@@ -186,14 +152,14 @@ def plot_min_eigenvalue_timeseries_panel(
 				alpha=0.8,
 				zorder=1,
 			)
+	if ylim is not None:
+		ax.set_ylim(ylim)
 	if xscale == "log" or yscale == "log":
 		add_slope_one_guide(ax)
 	ax.set_xlabel("Time (s)")
 	ax.set_ylabel(r"$\lambda^{\min}$")
 	ax.grid(True, which="both", linestyle=DASHED_LINESTYLE, alpha=0.25)
 	sns.despine(ax=ax)
-	if inset_specs is not None:
-		_add_zoom_insets(ax, plotted_lines, inset_specs)
 
 	add_split_line_legends(
 		fig,
@@ -208,13 +174,20 @@ def plot_min_eigenvalue_timeseries_panel(
 	save_paper_figure(fig, output_path)
 
 
-def plot_for_setting(setting_dir: Path, records: list[PaperRecord], _args) -> None:
+def plot_for_setting(
+	setting_dir: Path,
+	records: list[PaperRecord],
+	_args,
+	*,
+	figures_dir: Path | None = None,
+	split_kr2021_regimes: bool = True,
+) -> None:
 	filtered = [record for record in records if record.panel == MAIN_TEXT_NUM_AGENT]
 	if not filtered:
 		print(f"[{setting_dir.name}] No N={MAIN_TEXT_NUM_AGENT} data for minimum-eigenvalue plot; skipping.")
 		return
 
-	output_dir = setting_dir / "figures" / "min_eigenvalue_timeseries"
+	output_dir = (figures_dir or setting_dir / "figures") / "min_eigenvalue_timeseries"
 	plot_min_eigenvalue_timeseries_panel(
 		filtered,
 		MIN_EIGENVALUE_TOP_MODELS,
@@ -222,20 +195,35 @@ def plot_for_setting(setting_dir: Path, records: list[PaperRecord], _args) -> No
 		xscale="log",
 		yscale="log",
 	)
-	for group in MIN_EIGENVALUE_BOTTOM_MODELS:
-		bottom_filtered = [record for record in filtered if record.group == group]
-		if not bottom_filtered:
-			print(
-				f"[{setting_dir.name}] No N={MAIN_TEXT_NUM_AGENT} {group} data for unidentifiable min-eigenvalue plot; skipping."
-			)
+	tk2020_records = [record for record in filtered if record.group == "TK2020"]
+	kr2021_records = [record for record in filtered if record.group == "KR2021"]
+	if split_kr2021_regimes:
+		kr2021_regimes = split_kr2021_regimes(kr2021_records)
+		panels = [
+			(
+				tk2020_records + kr2021_regimes["fluctuation"],
+				MIN_EIGENVALUE_BOTTOM_MODELS,
+				"unidentifiable.pdf",
+				UNIDENTIFIABLE_YLIM,
+			),
+			(kr2021_regimes["linear"], ["KR2021"], "linear_KR2021.pdf", None),
+		]
+	else:
+		panels = [
+			(tk2020_records, ["TK2020"], "unidentifiable.pdf", UNIDENTIFIABLE_YLIM),
+			(kr2021_records, ["KR2021"], "KR2021.pdf", None),
+		]
+	for panel_records, group_order, filename, ylim in panels:
+		if not panel_records:
+			print(f"[{setting_dir.name}] No samples for {filename}; skipping.")
 			continue
 		plot_min_eigenvalue_timeseries_panel(
-			bottom_filtered,
-			[group],
-			output_dir / f"unidentifiable_{group}.pdf",
+			panel_records,
+			group_order,
+			output_dir / filename,
 			xscale="linear",
 			yscale="linear",
-			inset_specs=BOTTOM_INSET_YLIMS.get(group),
+			ylim=ylim,
 		)
 
 

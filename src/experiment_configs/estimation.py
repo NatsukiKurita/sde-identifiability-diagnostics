@@ -68,9 +68,9 @@ class EstimationConfig:
                 "k_alg": ((0.0, jnp.inf), (0.0, 20.0)),
             },
             "Soc_TK2020": {
-                "k_sep": ((0.0, jnp.inf), (0.0, 400.0)),
-                "k_coh": ((0.0, jnp.inf), (0.0, 400.0)),
-                "k_alg": ((0.0, jnp.inf), (0.0, 400.0)),
+                "k_sep": ((0.0, jnp.inf), (0.0, 20.0)),
+                "k_coh": ((0.0, jnp.inf), (0.0, 20.0)),
+                "k_alg": ((0.0, jnp.inf), (0.0, 20.0)),
             },
             "Soc_Null": {},
         },
