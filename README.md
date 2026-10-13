@@ -104,7 +104,6 @@ After setup, `./run_overall_procedure.sh` runs every analysis stage in order. `-
 .venv/bin/python scripts/05_supplemental_figures/00_method.py
 .venv/bin/python scripts/05_supplemental_figures/02_n4_spaghetti.py
 .venv/bin/python scripts/05_supplemental_figures/04_truth_diagnostics.py --setting setting_1
-.venv/bin/python scripts/04_figures/fig03_min_eigenvector.py --setting setting_1
 ```
 
 Help for any stage:
@@ -167,7 +166,6 @@ Each figure script reads `results/<setting>/` (minimum eigenvalues from `results
 | `fig01_min_eigenvalue_timeseries.py` | Mean (or representative) minimum-eigenvalue time series | `figures/min_eigenvalue_timeseries/identifiable.pdf` (Null, G2012, KV; log–log); `unidentifiable.pdf` (TK2020 plus KR2021 **fluctuation** samples, linear axes, fixed y-limits); `linear_KR2021.pdf` (KR2021 **linear** samples only). KR2021 linear vs fluctuation is split by whether the estimated `Social.m` is below or above the truth. KR2021 Inertial curves use representative samples where noted in `_common.py` (`SPECIAL_MIN_EIGENVALUE_SERIES`). |
 | `fig02_spaghetti.py` | Spaghetti charts of the minimum eigenvalue for every social model and kinetics | `figures/spaghetti/`. Identifiable models (Null, G2012, KV): slope=1 guide. TK2020: \(\sqrt{T}\log T\) guide and a **linear–linear inset** over the last 10 s. KR2021 Overdamped: separate `*_linear` and `*_fluctuation` panels. KR2021 Inertial: **one merged panel** (`KR2021_Inertial.pdf`) with \(\sqrt{T}\log T\) on the main axes and a slope=1 inset over the last 200 s. |
 | `fig03_degeneracy_scatter.py` | Estimates on the degenerate parameter pair with the theoretical manifold and ground truth | `figures/degeneracy_scatter/TK2020.pdf` (linear axes), `KR2021.pdf` (log–log axes) |
-| `fig03_min_eigenvector.py` | Squared components of the minimum-eigenvalue eigenvector (not run by `run_overall_procedure.sh`) | `figures/min_eigenvector_components/<model>.pdf` |
 | `fig04_error_evolution.py` | Worst relative error (max absolute log estimated/true ratio) vs time | `figures/error_plot/Overdamped/` and `figures/error_plot/Inertial/`, each with `error_plot_identifiable.pdf` and `error_plot_unidentifiable.pdf` |
 | `fig05_relative_distance.py` | Post-burn-in distribution of \(d/d^{\mathrm{eq}}\) for KR2021 N=2 | `figures/relative_distance/KR2021.pdf` (x-axis limited to 4; narrow histogram bins) |
 
