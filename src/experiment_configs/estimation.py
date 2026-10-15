@@ -32,10 +32,10 @@ class EstimationConfig:
         )
 
     # Optimizer settings. The main estimation path uses SciPy trust-constr.
-    TOL_PRESEARCH_TRUST_CONSTR = 1e-3
+    GTOL_PRESEARCH_TRUST_CONSTR = 1e-3
     XTOL_PRESEARCH_TRUST_CONSTR = 1e-5
 
-    TOL_TRUST_CONSTR = 1e-5
+    GTOL_TRUST_CONSTR = 1e-5
     XTOL_TRUST_CONSTR = 1e-9
 
     MAXITER_PRESEARCH_TRUST_CONSTR = 30

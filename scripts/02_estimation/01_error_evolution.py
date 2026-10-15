@@ -100,7 +100,7 @@ def estimate_parameter_trend(
 			initial_params,
 			lower_bounds,
 			upper_bounds,
-			tol=EstimationConfig.TOL_PRESEARCH_TRUST_CONSTR,
+			gtol=EstimationConfig.GTOL_PRESEARCH_TRUST_CONSTR,
 			xtol=EstimationConfig.XTOL_PRESEARCH_TRUST_CONSTR,
 			maxiter=EstimationConfig.MAXITER_PRESEARCH_TRUST_CONSTR,
 			return_metadata=True,

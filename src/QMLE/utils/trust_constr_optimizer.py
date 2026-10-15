@@ -29,7 +29,7 @@ def trust_constr_optimizer(
     initial_params: Any,  # dict of (NUM_STARTS, ...)
     lower_bounds: dict,
     upper_bounds: dict,
-    tol: float = EstimationConfig.TOL_TRUST_CONSTR,
+    gtol: float = EstimationConfig.GTOL_TRUST_CONSTR,
     xtol: float = EstimationConfig.XTOL_TRUST_CONSTR,
     maxiter: int = EstimationConfig.MAXITER_TRUST_CONSTR,
     return_metadata: bool = False,
@@ -41,8 +41,8 @@ def trust_constr_optimizer(
         initial_params: Initial parameter pytree. Leading dimension is interpreted as batch.
         lower_bounds: Lower bounds pytree.
         upper_bounds: Upper bounds pytree.
-        tol: Convergence tolerance.
-        xtol: Solution tolerance.
+        gtol: Gradient norm tolerance (SciPy trust-constr ``gtol``).
+        xtol: Step tolerance (SciPy trust-constr ``xtol``).
         maxiter: Maximum number of optimization iterations.
 
     Returns:
@@ -137,7 +137,7 @@ def trust_constr_optimizer(
             hessp=scipy_hessp,   # HVP function, key to escaping saddle points
             bounds=scipy_bounds,
             options={
-                'gtol': tol,
+                'gtol': gtol,
                 'xtol': xtol,
                 'maxiter': maxiter,
                 'verbose': 0     # Set to 1 or 2 for debugging output
