@@ -44,7 +44,7 @@ def main() -> None:
 			records,
 			args,
 			figures_dir=args.output_dir / setting_dir.name,
-			split_kr2021_regimes=False,
+			kr2021_split_by_estimate=False,
 		)
 		fig02_spaghetti.plot_for_setting(
 			setting_dir,

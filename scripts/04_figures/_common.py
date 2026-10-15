@@ -51,7 +51,7 @@ MARKER_GROUP_LEGEND_COLUMNSPACING = 1.6
 SPLIT_MARKER_GROUP_BBOX = (0.01, 1.0)
 SPLIT_MARKER_DYNAMICS_BBOX = (0.99, 1.0)
 LEGEND_LINEWIDTH = 2.0
-GUIDE_LABEL_FONTSIZE = 18
+GUIDE_LABEL_FONTSIZE = 14.4
 # Multiplier on the rcParams axis-label and tick-label sizes for spaghetti and error plots.
 AXIS_FONT_SCALE = 1.2
 

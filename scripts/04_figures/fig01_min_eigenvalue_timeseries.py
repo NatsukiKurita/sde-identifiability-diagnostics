@@ -180,7 +180,7 @@ def plot_for_setting(
 	_args,
 	*,
 	figures_dir: Path | None = None,
-	split_kr2021_regimes: bool = True,
+	kr2021_split_by_estimate: bool = True,
 ) -> None:
 	filtered = [record for record in records if record.panel == MAIN_TEXT_NUM_AGENT]
 	if not filtered:
@@ -197,7 +197,7 @@ def plot_for_setting(
 	)
 	tk2020_records = [record for record in filtered if record.group == "TK2020"]
 	kr2021_records = [record for record in filtered if record.group == "KR2021"]
-	if split_kr2021_regimes:
+	if kr2021_split_by_estimate:
 		kr2021_regimes = split_kr2021_regimes(kr2021_records)
 		panels = [
 			(
