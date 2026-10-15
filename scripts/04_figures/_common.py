@@ -775,9 +775,10 @@ def style_min_eigenvalue_axis(
 	elif guide == "sqrt_log":
 		add_sqrt_x_log_x_guide(ax, **guide_kwargs)
 		_shift_artists_down(ax, ax.lines[n_lines:], ax.texts[n_texts:], -SPAGHETTI_SQRT_GUIDE_AXES_UP_SHIFT)
-	ax.set_xlabel("Time [s]")
+	ax.set_xlabel("Time (s)")
 	ax.set_ylabel(r"$\lambda^{\mathrm{min}}$")
 	scale_axis_fonts(ax)
+	ax.xaxis.label.set_size(plt.rcParams["axes.labelsize"])
 	ax.grid(True, which="both", linestyle=DASHED_LINESTYLE, alpha=0.25)
 	sns.despine(ax=ax)
 
