@@ -28,6 +28,7 @@ from _common import (
 	read_json,
 	run_for_settings,
 	save_paper_figure,
+	scale_axis_fonts,
 )
 
 # Adjust this figure size independently.
@@ -41,6 +42,9 @@ GUIDE_ABOVE_DATA_FACTORS = {
 	"Overdamped": 0.7,
 }
 GUIDE_TOP_HEADROOM = 1.15
+# Major log-tick mantissas; the identifiable panel's y axis keeps powers of 10 only.
+LOG_TICK_SUBS = (1.0, 2.0, 5.0)
+IDENTIFIABLE_Y_LOG_TICK_SUBS = (1.0,)
 ERROR_PLOT_KINETICS_DIRS = (
 	("Inertial", "Inertial"),
 	("Overdamped", "Overdamped"),
@@ -103,6 +107,7 @@ def plot_precision_panel(
 	output_path: Path,
 	*,
 	guide_above_data_factor: float,
+	y_log_tick_subs: tuple[float, ...] = LOG_TICK_SUBS,
 ) -> None:
 	palette = model_palette(group_order)
 	fig, ax = plt.subplots(figsize=FIGSIZE)
@@ -146,8 +151,8 @@ def plot_precision_panel(
 
 	ax.set_xscale("log")
 	ax.set_yscale("log")
-	for axis in (ax.xaxis, ax.yaxis):
-		axis.set_major_locator(LogLocator(base=10.0, subs=(1.0, 2.0, 5.0)))
+	for axis, subs in ((ax.xaxis, LOG_TICK_SUBS), (ax.yaxis, y_log_tick_subs)):
+		axis.set_major_locator(LogLocator(base=10.0, subs=subs))
 		axis.set_major_formatter(FormatStrFormatter("%g"))
 		axis.set_minor_formatter(NullFormatter())
 	all_times = np.concatenate(tick_times)
@@ -155,6 +160,7 @@ def plot_precision_panel(
 	add_inverse_sqrt_guide(ax, guide_above_data_factor)
 	ax.set_xlabel("Time (s)")
 	ax.set_ylabel("Worst relative error")
+	scale_axis_fonts(ax)
 	ax.grid(True, which="both", linestyle=DASHED_LINESTYLE, alpha=0.25)
 	sns.despine(ax=ax)
 	fig.tight_layout()
@@ -181,6 +187,7 @@ def plot_for_setting(setting_dir: Path, records: list[PaperRecord], _args) -> No
 			MIN_EIGENVALUE_TOP_MODELS,
 			output_dir / "error_plot_identifiable.pdf",
 			guide_above_data_factor=guide_above_data_factor,
+			y_log_tick_subs=IDENTIFIABLE_Y_LOG_TICK_SUBS,
 		)
 		plot_precision_panel(
 			filtered,

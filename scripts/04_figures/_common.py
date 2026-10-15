@@ -16,7 +16,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 import h5py
 import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
-from matplotlib.ticker import NullFormatter, ScalarFormatter
+from matplotlib.ticker import LogFormatterSciNotation, NullFormatter, ScalarFormatter
 import numpy as np
 import seaborn as sns
 import toml
@@ -51,6 +51,9 @@ MARKER_GROUP_LEGEND_COLUMNSPACING = 1.6
 SPLIT_MARKER_GROUP_BBOX = (0.01, 1.0)
 SPLIT_MARKER_DYNAMICS_BBOX = (0.99, 1.0)
 LEGEND_LINEWIDTH = 2.0
+GUIDE_LABEL_FONTSIZE = 18
+# Multiplier on the rcParams axis-label and tick-label sizes for spaghetti and error plots.
+AXIS_FONT_SCALE = 1.2
 
 
 @dataclass(frozen=True)
@@ -143,10 +146,17 @@ def _draw_axis_guide(
 		label_y,
 		label,
 		color="0.2",
-		fontsize=9,
+		fontsize=GUIDE_LABEL_FONTSIZE,
 		ha="center",
 		va="bottom",
 	)
+
+
+def scale_axis_fonts(ax: plt.Axes, scale: float = AXIS_FONT_SCALE) -> None:
+	ax.xaxis.label.set_size(plt.rcParams["axes.labelsize"] * scale)
+	ax.yaxis.label.set_size(plt.rcParams["axes.labelsize"] * scale)
+	ax.tick_params(axis="x", labelsize=plt.rcParams["xtick.labelsize"] * scale)
+	ax.tick_params(axis="y", labelsize=plt.rcParams["ytick.labelsize"] * scale)
 
 
 def add_slope_one_guide(
@@ -218,7 +228,7 @@ def add_sqrt_x_log_x_guide(
 	y_values = guide_scale * shape
 	label_x = float(np.sqrt(x_min * x_end))
 	label_y = guide_scale * np.sqrt(label_x) * np.log(label_x) * 1.35
-	_draw_axis_guide(ax, x_values, y_values, r"$\sqrt{T}\,\log T$", label_x, label_y)
+	_draw_axis_guide(ax, x_values, y_values, r"$\sqrt{t}\,\log t$", label_x, label_y)
 
 
 def linestyle_for_linewidth(linestyle: str | tuple, linewidth: float) -> str | tuple:
@@ -339,7 +349,7 @@ SPAGHETTI_SLOPE_ONE_INSET_BOUNDS = (0.28, 0.47, 0.69, 0.51)
 # Fraction of the main-axes height left empty above the data to hold the slope=1 inset.
 SPAGHETTI_SLOPE_ONE_INSET_HEADROOM = 0.45
 SPAGHETTI_INSET_LOG_XTICKS = (100.0, 200.0, 300.0)
-SPAGHETTI_INSET_LABELSIZE = 8
+SPAGHETTI_INSET_LABELSIZE = 13
 SPAGHETTI_LINE_ALPHA = 0.25
 SPAGHETTI_LINEWIDTH = 0.27
 DASHED_LINESTYLE = (0, (2.0, 0.8))
@@ -707,6 +717,19 @@ def prepare_min_eigenvalue_line(
 	return times, values
 
 
+class _SymlogFormatter(LogFormatterSciNotation):
+	"""Hides the +/-linthresh labels, which collide with the 0 label on symlog axes."""
+
+	def __init__(self, linthresh: float) -> None:
+		super().__init__(base=10.0)
+		self._hidden_linthresh = linthresh
+
+	def __call__(self, x, pos=None):
+		if np.isclose(abs(x), self._hidden_linthresh):
+			return ""
+		return super().__call__(x, pos)
+
+
 def _apply_axis_scale(ax: plt.Axes, axis: str, scale: str) -> None:
 	kwargs: dict[str, float] = {}
 	if scale == "symlog":
@@ -718,6 +741,9 @@ def _apply_axis_scale(ax: plt.Axes, axis: str, scale: str) -> None:
 		ax.set_xscale(scale, **kwargs)
 	else:
 		ax.set_yscale(scale, **kwargs)
+	if scale == "symlog":
+		axis_obj = ax.xaxis if axis == "x" else ax.yaxis
+		axis_obj.set_major_formatter(_SymlogFormatter(SPAGHETTI_SYMLOG_LINTHRESH_Y))
 
 
 def style_min_eigenvalue_axis(
@@ -751,6 +777,7 @@ def style_min_eigenvalue_axis(
 		_shift_artists_down(ax, ax.lines[n_lines:], ax.texts[n_texts:], -SPAGHETTI_SQRT_GUIDE_AXES_UP_SHIFT)
 	ax.set_xlabel("Time [s]")
 	ax.set_ylabel(r"$\lambda^{\mathrm{min}}$")
+	scale_axis_fonts(ax)
 	ax.grid(True, which="both", linestyle=DASHED_LINESTYLE, alpha=0.25)
 	sns.despine(ax=ax)
 
@@ -766,6 +793,18 @@ def _extend_top_headroom(ax: plt.Axes, fraction: float) -> None:
 	ax.set_yticks(major_ticks)
 	ax.set_yticks(minor_ticks, minor=True)
 	ax.spines["left"].set_bounds(data_bottom, data_top)
+
+
+def _thin_symlog_yticks(ax: plt.Axes, stride: int) -> None:
+	y_bottom, y_top = ax.get_ylim()
+	kept = [
+		tick
+		for tick in ax.get_yticks()
+		if y_bottom <= tick <= y_top
+		and (tick == 0.0 or round(np.log10(abs(tick))) % stride == 0)
+	]
+	ax.set_yticks(kept)
+	ax.set_ylim(y_bottom, y_top)
 
 
 def _tail_lines(
@@ -809,6 +848,8 @@ def add_slope_one_tail_inset(
 	bounds: tuple[float, float, float, float],
 	line_alpha: float,
 	linewidth: float,
+	guide_down_shift: float = SPAGHETTI_GUIDE_AXES_DOWN_SHIFT,
+	ytick_stride: int = 1,
 ) -> None:
 	start = SPAGHETTI_PLOT_SECONDS - seconds
 	inset = ax.inset_axes(bounds)
@@ -821,10 +862,14 @@ def add_slope_one_tail_inset(
 	inset.set_xticks([tick for tick in SPAGHETTI_INSET_LOG_XTICKS if start <= tick <= SPAGHETTI_PLOT_SECONDS])
 	inset.xaxis.set_major_formatter(ScalarFormatter())
 	inset.xaxis.set_minor_formatter(NullFormatter())
-	inset.set_ylim(inset.get_ylim())
+	y_bottom, y_top = inset.get_ylim()
+	inset.set_ylim(y_bottom, y_top)
+	if ytick_stride > 1:
+		decades = np.arange(np.ceil(np.log10(y_bottom)), np.floor(np.log10(y_top)) + 1.0)
+		inset.set_yticks(10.0 ** decades[::ytick_stride])
 	n_lines, n_texts = len(inset.lines), len(inset.texts)
 	add_slope_one_guide(inset, x_start=start, x_end=SPAGHETTI_PLOT_SECONDS, y_top_divisor=SPAGHETTI_GUIDE_Y_TOP_DIVISOR)
-	_shift_artists_down(inset, inset.lines[n_lines:], inset.texts[n_texts:], SPAGHETTI_GUIDE_AXES_DOWN_SHIFT)
+	_shift_artists_down(inset, inset.lines[n_lines:], inset.texts[n_texts:], guide_down_shift)
 	_style_inset(inset)
 
 
@@ -836,7 +881,9 @@ def plot_spaghetti_min_eigenvalue(
 	color,
 	guide: str | None,
 	inset: str | None = None,
-	title: str | None = None,
+	inset_guide_down_shift: float = SPAGHETTI_GUIDE_AXES_DOWN_SHIFT,
+	inset_ytick_stride: int = 1,
+	main_ytick_stride: int = 1,
 	line_alpha: float = SPAGHETTI_LINE_ALPHA,
 	linewidth: float = SPAGHETTI_LINEWIDTH,
 ) -> None:
@@ -880,10 +927,12 @@ def plot_spaghetti_min_eigenvalue(
 			color,
 			seconds=SPAGHETTI_SLOPE_ONE_INSET_SECONDS,
 			bounds=SPAGHETTI_SLOPE_ONE_INSET_BOUNDS,
+			guide_down_shift=inset_guide_down_shift,
+			ytick_stride=inset_ytick_stride,
 			**inset_kwargs,
 		)
-	if title:
-		ax.set_title(title)
+	if main_ytick_stride > 1:
+		_thin_symlog_yticks(ax, main_ytick_stride)
 	fig.tight_layout()
 	save_paper_figure(fig, output_path)
 

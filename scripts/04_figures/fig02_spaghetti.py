@@ -28,8 +28,14 @@ KR2021_REGIME_GUIDE_INSETS = {
 	"linear": (None, "slope_one_tail"),
 	"fluctuation": ("sqrt_log", None),
 }
+# Extra inset options per KR2021 regime; the linear-regime guide is lowered below the sample paths.
+KR2021_REGIME_INSET_OPTIONS = {
+	"linear": {"inset_guide_down_shift": 0.5, "inset_ytick_stride": 2},
+	"fluctuation": {},
+}
 # Merged KR2021 Inertial panel: both regimes on one axes.
-KR2021_INERTIAL_GUIDE_INSET = ("sqrt_log", "slope_one_tail")
+KR2021_INERTIAL_GUIDE_INSET = (None, None)
+KR2021_INERTIAL_OPTIONS = {"main_ytick_stride": 2}
 
 
 def _spaghetti_panels(
@@ -40,41 +46,25 @@ def _spaghetti_panels(
 	num_agents: int,
 	kr2021_split_by_estimate: bool,
 	tk2020_linear_tail_inset: bool,
-) -> list[tuple[list[PaperRecord], str, str, str | None, str | None]]:
+) -> list[tuple[list[PaperRecord], str, str | None, str | None, dict]]:
 	if group == "KR2021" and not kr2021_split_by_estimate:
-		return [
-			(
-				cell,
-				f"{group}_{kinetics}",
-				f"{group} ({kinetics})",
-				*KR2021_REGIME_GUIDE_INSETS["linear"],
-			)
-		]
+		return [(cell, f"{group}_{kinetics}", *KR2021_REGIME_GUIDE_INSETS["linear"], {})]
 	if group == "KR2021" and kinetics == "Inertial":
-		return [
-			(
-				cell,
-				f"{group}_{kinetics}",
-				f"{group} ({kinetics})",
-				*KR2021_INERTIAL_GUIDE_INSET,
-			)
-		]
+		return [(cell, f"{group}_{kinetics}", *KR2021_INERTIAL_GUIDE_INSET, KR2021_INERTIAL_OPTIONS)]
 	if group == "KR2021":
 		return [
 			(
 				regime_records,
 				f"{group}_{kinetics}_{regime}",
-				f"{group} ({kinetics}, {regime})",
 				*KR2021_REGIME_GUIDE_INSETS[regime],
+				KR2021_REGIME_INSET_OPTIONS[regime],
 			)
 			for regime, regime_records in split_kr2021_regimes(cell).items()
 		]
 	if group == "TK2020" and num_agents == MAIN_TEXT_NUM_AGENT:
 		inset = "linear_tail" if tk2020_linear_tail_inset else None
-		return [(cell, f"{group}_{kinetics}", f"{group} ({kinetics})", "sqrt_log", inset)]
-	if group == "TK2020":
-		return [(cell, f"{group}_{kinetics}", f"{group} ({kinetics}, N={num_agents})", "slope_one", None)]
-	return [(cell, f"{group}_{kinetics}", f"{group} ({kinetics})", "slope_one", None)]
+		return [(cell, f"{group}_{kinetics}", "sqrt_log", inset, {})]
+	return [(cell, f"{group}_{kinetics}", "slope_one", None, {})]
 
 
 def plot_for_setting(
@@ -106,7 +96,7 @@ def plot_for_setting(
 			if not cell:
 				print(f"[{setting_dir.name}] No {group} {kinetics} N={num_agents} samples; skipping.")
 				continue
-			for panel_records, stem, title, guide, inset in _spaghetti_panels(
+			for panel_records, stem, guide, inset, inset_options in _spaghetti_panels(
 				group,
 				kinetics,
 				cell,
@@ -124,7 +114,7 @@ def plot_for_setting(
 					color=palette[group],
 					guide=guide,
 					inset=inset,
-					title=title,
+					**inset_options,
 				)
 
 
