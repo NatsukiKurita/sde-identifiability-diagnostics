@@ -63,7 +63,7 @@ Later stages use `.venv/bin/python` when `PYTHON` is unset. `run_overall_procedu
 
 Settings are defined by the TOML presets in `src/experiment_configs/parameter_presets/`. Each `setting_*.toml` file becomes one setting named after its file stem (for example `setting_1`). Simulated population sizes are `NUM_AGENTS` in `src/experiment_configs/simulation.py` (currently 2 and 4).
 
-After setup, `./run_overall_procedure.sh` runs every analysis stage in order. `--setting` is forwarded to simulation, estimation, diagnostics, and the paper figures. Without it, those stages use every setting in `PARAMETER_SETTINGS`. The supplemental figures always use their own defaults; `00_method.py`, `02_tk2020_n4_spaghetti.py`, and `03_kr2021_tandem_example.py` read `setting_1`. `--overwrite` is forwarded to TOML preparation, simulation, estimation, diagnostics, and example trajectories.
+After setup, `./run_overall_procedure.sh` runs every analysis stage in order. `--setting` is forwarded to simulation, estimation, diagnostics, and the paper figures. Without it, those stages use every setting in `PARAMETER_SETTINGS`. Supplemental scripts `00_method.py` and `02_n4_spaghetti.py` default to `setting_1`; run `04_truth_diagnostics.py` separately if you need truth-parameter versions of the fig01/fig02 layouts. `--overwrite` is forwarded to TOML preparation, simulation, estimation, diagnostics, and example trajectories.
 
 ```bash
 ./run_overall_procedure.sh
@@ -84,8 +84,7 @@ After setup, `./run_overall_procedure.sh` runs every analysis stage in order. `-
 | 04 | `scripts/04_figures/fig05_relative_distance.py` | KR2021 inter-individual distance distribution after burn-in |
 | 05 | `scripts/05_supplemental_figures/01_example_trajectories.py` | Example trajectories |
 | 05 | `scripts/05_supplemental_figures/00_method.py` | Method comparison of minimum-eigenvalue trajectories |
-| 05 | `scripts/05_supplemental_figures/02_tk2020_n4_spaghetti.py` | Minimum-eigenvalue spaghetti charts for TK2020 with N=4 |
-| 05 | `scripts/05_supplemental_figures/03_kr2021_tandem_example.py` | KR2021 tandem-state example in the body frame |
+| 05 | `scripts/05_supplemental_figures/02_n4_spaghetti.py` | Minimum-eigenvalue spaghetti charts for every model with N=4 |
 
 `scripts/02_estimation/01_error_evolution.py` is imported by the estimation script. It re-estimates parameters on cumulative post-burn-in prefixes and is not a separate command. `scripts/04_figures/_common.py` holds the shared figure arguments and plotting helpers.
 
@@ -103,8 +102,8 @@ After setup, `./run_overall_procedure.sh` runs every analysis stage in order. `-
 .venv/bin/python scripts/04_figures/fig05_relative_distance.py --setting setting_1
 .venv/bin/python scripts/05_supplemental_figures/01_example_trajectories.py --overwrite
 .venv/bin/python scripts/05_supplemental_figures/00_method.py
-.venv/bin/python scripts/05_supplemental_figures/02_tk2020_n4_spaghetti.py
-.venv/bin/python scripts/05_supplemental_figures/03_kr2021_tandem_example.py
+.venv/bin/python scripts/05_supplemental_figures/02_n4_spaghetti.py
+.venv/bin/python scripts/05_supplemental_figures/04_truth_diagnostics.py --setting setting_1
 ```
 
 Help for any stage:
@@ -154,15 +153,21 @@ Options match estimation: `--sim_root`, `--setting`, and `--overwrite`.
 
 ### 04 Paper figures
 
-Each figure script reads `results/<setting>/` and writes PDF and PNG files under `results/<setting>/figures/`. All paper figures use the N=2 samples (`MAIN_TEXT_NUM_AGENT` in `scripts/04_figures/_common.py`).
+Each figure script reads `results/<setting>/` (minimum eigenvalues from `results/optimum` in `result_time_series.h5`) and writes PDF and PNG files under `results/<setting>/figures/`. Main-text plots use the N=2 samples (`MAIN_TEXT_NUM_AGENT` in `scripts/04_figures/_common.py`).
 
-| Script | Figure | Output directory |
-|--------|--------|------------------|
-| `fig01_min_eigenvalue_timeseries.py` | Minimum-eigenvalue time series | `figures/min_eigenvalue_timeseries/` |
-| `fig02_spaghetti.py` | Minimum-eigenvalue spaghetti charts for every social model and kinetics | `figures/min_eigenvalue_spaghetti_by_model/` |
-| `fig03_degeneracy_scatter.py` | Estimates on the degenerate parameter pair with the theoretical manifold and the ground truth | `figures/degeneracy_scatter/` |
-| `fig04_error_evolution.py` | Parameter-precision time series | `figures/error_plot/` |
-| `fig05_relative_distance.py` | KR2021 inter-individual distance frequency density | `figures/relative_distance/` |
+**Shared time-axis conventions** (fig01, fig02, and other scripts that call `downsample_min_eigenvalue_series` in `_common.py`):
+
+- Data are shown from **t = 1 s** onward (`MIN_EIGENVALUE_PLOT_START_SECONDS`).
+- Series are downsampled to **one point per second** (`MIN_EIGENVALUE_PLOT_INTERVAL_SECONDS = 1.0`).
+- The horizontal axis runs up to **300 s** unless a script sets a narrower window.
+
+| Script | Figure | Output files / directory |
+|--------|--------|---------------------------|
+| `fig01_min_eigenvalue_timeseries.py` | Mean (or representative) minimum-eigenvalue time series | `figures/min_eigenvalue_timeseries/identifiable.pdf` (Null, G2012, KV; log–log); `unidentifiable.pdf` (TK2020 plus KR2021 **fluctuation** samples, linear axes, fixed y-limits); `linear_KR2021.pdf` (KR2021 **linear** samples only). KR2021 linear vs fluctuation is split by whether the estimated `Social.m` is below or above the truth. KR2021 Inertial curves use representative samples where noted in `_common.py` (`SPECIAL_MIN_EIGENVALUE_SERIES`). |
+| `fig02_spaghetti.py` | Spaghetti charts of the minimum eigenvalue for every social model and kinetics | `figures/spaghetti/`. Identifiable models (Null, G2012, KV): slope=1 guide. TK2020: \(\sqrt{T}\log T\) guide and a **linear–linear inset** over the last 10 s. KR2021 Overdamped: separate `*_linear` and `*_fluctuation` panels. KR2021 Inertial: **one merged panel** (`KR2021_Inertial.pdf`) with \(\sqrt{T}\log T\) on the main axes and a slope=1 inset over the last 200 s. |
+| `fig03_degeneracy_scatter.py` | Estimates on the degenerate parameter pair with the theoretical manifold and ground truth | `figures/degeneracy_scatter/TK2020.pdf` (linear axes), `KR2021.pdf` (log–log axes) |
+| `fig04_error_evolution.py` | Worst relative error (max absolute log estimated/true ratio) vs time | `figures/error_plot/Overdamped/` and `figures/error_plot/Inertial/`, each with `error_plot_identifiable.pdf` and `error_plot_unidentifiable.pdf` |
+| `fig05_relative_distance.py` | Post-burn-in distribution of \(d/d^{\mathrm{eq}}\) for KR2021 N=2 | `figures/relative_distance/KR2021.pdf` (x-axis limited to 4; narrow histogram bins) |
 
 Shared options:
 
@@ -177,8 +182,8 @@ Shared options:
 |--------|----------------|----------------|
 | `01_example_trajectories.py` | A short example trajectory for every simulation model | `results/04_supplemental_figures/method/example_trajectories/` |
 | `00_method.py` | Minimum-eigenvalue trajectories for an identifiable sample and an unidentifiable sample | `results/04_supplemental_figures/method/` |
-| `02_tk2020_n4_spaghetti.py` | Minimum-eigenvalue spaghetti charts for TK2020 with N=4, using the identifiable (slope=1) guide | `results/04_supplemental_figures/tk2020_n4_spaghetti/<setting>/` |
-| `03_kr2021_tandem_example.py` | 10 s after burn-in of KR2021 Inertial N=2 in the reference individual's body frame: tandem sample 0041 vs. typical sample 0001 | `results/04_supplemental_figures/kr2021_tandem/` |
+| `02_n4_spaghetti.py` | Spaghetti charts for **every** social model and kinetics at **N = 4** (same panel logic as fig02 via `fig02_spaghetti.plot_for_setting`; TK2020 at N=4 uses the slope=1 guide because cohesion and separation decouple) | `results/04_supplemental_figures/n4_spaghetti/<setting>/spaghetti/` |
+| `04_truth_diagnostics.py` | Same layouts as fig01 and fig02, but minimum eigenvalues from `results/truth` in `result_time_series.h5`. **KR2021 is not split** by estimated-\(m\) regime (one panel per kinetics). **TK2020 spaghetti has no terminal linear inset.** Fig01 truth outputs: `identifiable.pdf`, `unidentifiable.pdf` (TK2020 only), `KR2021.pdf` (all KR2021 samples). | `results/04_supplemental_figures/truth_diagnostics/<setting>/` |
 
 `00_method.py` reads `results/optimum` from `result_time_series.h5` (or a result directory or `summary.json` that points at it). Its built-in sample paths are under `results/setting_1`. It does not take `--setting`.
 
@@ -203,10 +208,18 @@ Method comparison:
 | `--time-limit SECONDS` | Maximum time on the x-axis (default: 60) |
 | `--plot-to-end` | Plot the full trajectory instead of stopping at `--time-limit` |
 
-TK2020 N=4 spaghetti:
+N=4 spaghetti (`02_n4_spaghetti.py`):
 
 | Option | Description |
 |--------|-------------|
 | `--setting SETTING` | Setting to read (default: `setting_1`) |
 | `--results-root PATH` | Results root. Default: `results` |
-| `--output-dir PATH` | Output root; figures go under `<output-dir>/<setting>/` |
+| `--output-dir PATH` | Output root; figures go under `<output-dir>/<setting>/spaghetti/` |
+
+Truth diagnostics (`04_truth_diagnostics.py`):
+
+| Option | Description |
+|--------|-------------|
+| `--setting SETTING` | One setting. Default: every `setting_*` under the results root |
+| `--results-root PATH` | Results root. Default: `results` |
+| `--output-dir PATH` | Output root. Default: `results/04_supplemental_figures/truth_diagnostics` |

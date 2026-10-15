@@ -30,7 +30,8 @@ from src.paths import DATA_ROOT
 
 FIGSIZE = (6.4, 4.0)
 MODEL = "KR2021"
-NUM_BINS = 240 # originally 120
+X_MAX = 3.5
+NUM_BINS = 350
 BURN_IN_FRAMES = int(EigenvalueTimeSeriesConfig.BURN_IN)
 
 
@@ -76,8 +77,7 @@ def plot_for_setting(setting_dir: Path, _records: list[PaperRecord], _args) -> N
 		return
 	ratios_by_kinetics = {kinetics: d / d_eq for kinetics, d in distances_by_kinetics.items()}
 
-	pooled = np.concatenate(list(ratios_by_kinetics.values()))
-	bins = np.linspace(0.0, float(pooled.max()), NUM_BINS + 1)
+	bins = np.linspace(0.0, X_MAX, NUM_BINS + 1)
 	palette = dict(zip(ratios_by_kinetics, sns.color_palette("deep", n_colors=len(ratios_by_kinetics))))
 
 	fig, ax = plt.subplots(figsize=FIGSIZE)
@@ -96,9 +96,9 @@ def plot_for_setting(setting_dir: Path, _records: list[PaperRecord], _args) -> N
 		)
 
 	ax.axvline(1.0, color="0.35", linestyle="-", linewidth=0.9, zorder=0)
-	ax.set_xlim(left=0.0)
+	ax.set_xlim(0.0, X_MAX)
 	ax.set_xlabel(r"$d / d^{\mathrm{eq}}$")
-	ax.set_ylabel("Frequency density")
+	ax.set_ylabel("Relative frequency")
 	ax.grid(True, linestyle=DASHED_LINESTYLE, alpha=0.25)
 	ax.legend(frameon=False, loc="upper right")
 	sns.despine(ax=ax)
@@ -109,5 +109,5 @@ def plot_for_setting(setting_dir: Path, _records: list[PaperRecord], _args) -> N
 if __name__ == "__main__":
 	run_for_settings(
 		plot_for_setting,
-		description="Frequency density of KR2021 inter-individual distance after burn-in.",
+		description="Relative frequency of KR2021 inter-individual distance after burn-in.",
 	)

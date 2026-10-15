@@ -33,10 +33,13 @@ from _common import (
 # Adjust this figure size independently.
 FIGSIZE = (6.4, 4.0)
 # Slope -1/2 guide: x extent as fractions of the (log) x range; its right end sits
-# GUIDE_ABOVE_DATA_FACTOR times above the data maximum.
+# GUIDE_ABOVE_DATA_FACTORS[kinetics] times the data maximum.
 GUIDE_X_START_FRACTION = 0.1
 GUIDE_X_END_FRACTION = 0.9
-GUIDE_ABOVE_DATA_FACTOR = 1.3
+GUIDE_ABOVE_DATA_FACTORS = {
+	"Inertial": 1.3,
+	"Overdamped": 0.7,
+}
 GUIDE_TOP_HEADROOM = 1.15
 ERROR_PLOT_KINETICS_DIRS = (
 	("Inertial", "Inertial"),
@@ -78,14 +81,14 @@ def _record_parameter_accuracy_series(record: PaperRecord) -> tuple[np.ndarray, 
 	return np.asarray(times, dtype=float), np.asarray(errors, dtype=float)
 
 
-def add_inverse_sqrt_guide(ax: plt.Axes) -> None:
-	"""Slope -1/2 reference line (T^{-1/2} convergence) placed above the data; extends the y range if needed."""
+def add_inverse_sqrt_guide(ax: plt.Axes, above_data_factor: float) -> None:
+	"""Slope -1/2 reference line (T^{-1/2} convergence) placed relative to the data; extends the y range if needed."""
 	x_left, x_right = ax.get_xlim()
 	y_bottom, y_top = ax.get_ylim()
 	x_start = x_left * (x_right / x_left) ** GUIDE_X_START_FRACTION
 	x_end = x_left * (x_right / x_left) ** GUIDE_X_END_FRACTION
 	x_values = np.geomspace(x_start, x_end, 64)
-	y_end = float(ax.dataLim.y1) * GUIDE_ABOVE_DATA_FACTOR
+	y_end = float(ax.dataLim.y1) * above_data_factor
 	y_values = y_end * (x_values / x_end) ** -0.5
 	label_x = float(np.sqrt(x_start * x_end))
 	label_y = y_end * (label_x / x_end) ** -0.5 * 1.15
@@ -98,6 +101,8 @@ def plot_precision_panel(
 	filtered: list[PaperRecord],
 	group_order: list[str],
 	output_path: Path,
+	*,
+	guide_above_data_factor: float,
 ) -> None:
 	palette = model_palette(group_order)
 	fig, ax = plt.subplots(figsize=FIGSIZE)
@@ -147,7 +152,7 @@ def plot_precision_panel(
 		axis.set_minor_formatter(NullFormatter())
 	all_times = np.concatenate(tick_times)
 	ax.set_xlim(float(np.min(all_times)), float(np.max(all_times)))
-	add_inverse_sqrt_guide(ax)
+	add_inverse_sqrt_guide(ax, guide_above_data_factor)
 	ax.set_xlabel("Time (s)")
 	ax.set_ylabel("Worst relative error")
 	ax.grid(True, which="both", linestyle=DASHED_LINESTYLE, alpha=0.25)
@@ -170,15 +175,18 @@ def plot_for_setting(setting_dir: Path, records: list[PaperRecord], _args) -> No
 			continue
 
 		output_dir = setting_dir / "figures" / "error_plot" / kinetics_dir
+		guide_above_data_factor = GUIDE_ABOVE_DATA_FACTORS[kinetics]
 		plot_precision_panel(
 			filtered,
 			MIN_EIGENVALUE_TOP_MODELS,
 			output_dir / "error_plot_identifiable.pdf",
+			guide_above_data_factor=guide_above_data_factor,
 		)
 		plot_precision_panel(
 			filtered,
 			MIN_EIGENVALUE_BOTTOM_MODELS,
 			output_dir / "error_plot_unidentifiable.pdf",
+			guide_above_data_factor=guide_above_data_factor,
 		)
 
 

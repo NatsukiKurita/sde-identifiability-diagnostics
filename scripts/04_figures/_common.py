@@ -16,22 +16,13 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 import h5py
 import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
+from matplotlib.ticker import NullFormatter, ScalarFormatter
 import numpy as np
 import seaborn as sns
 import toml
 from src.figure_config import set_paper_style
 from src.QMLE.builder import extract_params_from_toml
 from src.paths import DATA_ROOT, RESULTS_ROOT
-
-# Samples excluded from paper figures (except spaghetti charts), keyed by setting name.
-# KR2021 (Inertial, model_0006): min eigenvalue decreases linearly in time, which the theory
-# does not predict; likely the optimizer is trapped at a saddle point (selected by visual inspection).
-EXCLUDED_SAMPLES = {
-	"setting_1": (
-		"results_0006_N2_0004",
-		"results_0006_N2_0021",
-	),
-}
 
 PARAMETER_EPS = 1e-12
 RESULT_TIME_SERIES_FILENAME = "result_time_series.h5"
@@ -59,6 +50,7 @@ MARKER_GROUP_LEGEND_MAX_NCOLS = 2
 MARKER_GROUP_LEGEND_COLUMNSPACING = 1.6
 SPLIT_MARKER_GROUP_BBOX = (0.01, 1.0)
 SPLIT_MARKER_DYNAMICS_BBOX = (0.99, 1.0)
+LEGEND_LINEWIDTH = 2.0
 
 
 @dataclass(frozen=True)
@@ -138,9 +130,9 @@ def _draw_axis_guide(
 	ax.plot(
 		x_values,
 		y_values,
-		color="0.55",
+		color="0.25",
 		linestyle=":",
-		linewidth=1.0,
+		linewidth=1.2,
 		zorder=0,
 		label="_nolegend_",
 		scalex=False,
@@ -150,7 +142,7 @@ def _draw_axis_guide(
 		label_x,
 		label_y,
 		label,
-		color="0.45",
+		color="0.2",
 		fontsize=9,
 		ha="center",
 		va="bottom",
@@ -229,6 +221,15 @@ def add_sqrt_x_log_x_guide(
 	_draw_axis_guide(ax, x_values, y_values, r"$\sqrt{T}\,\log T$", label_x, label_y)
 
 
+def linestyle_for_linewidth(linestyle: str | tuple, linewidth: float) -> str | tuple:
+	# Matplotlib scales dash patterns by linewidth; rescale so the dashes match the legend handles.
+	if isinstance(linestyle, tuple):
+		offset, dashes = linestyle
+		scale = LEGEND_LINEWIDTH / linewidth
+		return offset * scale, tuple(length * scale for length in dashes)
+	return linestyle
+
+
 def add_split_line_legends(
 	fig: plt.Figure,
 	group_order: list[str],
@@ -246,7 +247,7 @@ def add_split_line_legends(
 			[0],
 			[0],
 			color=palette.get(group, "#777777"),
-			linewidth=2.0,
+			linewidth=LEGEND_LINEWIDTH,
 			label=group,
 		)
 		for group in group_order
@@ -259,7 +260,7 @@ def add_split_line_legends(
 			color="0.25",
 			linestyle="None" if kinetics_style == "marker" else kinetics_linestyles.get(kinetics, ":"),
 			marker=None if kinetics_style == "line" else KINETICS_MARKERS.get(kinetics, "D"),
-			linewidth=2.0,
+			linewidth=LEGEND_LINEWIDTH,
 			markersize=6,
 			markerfacecolor="none",
 			markeredgewidth=1.2,
@@ -304,22 +305,43 @@ DEGENERACY_PAIRS = {
 }
 MIN_EIGENVALUE_TOP_MODELS = ["Null", "G2012", "KV"]
 MIN_EIGENVALUE_BOTTOM_MODELS = ["KR2021", "TK2020"]
+# KR2021 samples are split by which side of the truth the estimated m lands on:
+# m_hat < m_true gives a near-zero, slowly (linearly) growing min eigenvalue,
+# m_hat > m_true gives a min eigenvalue that random-walks across zero.
+KR2021_REGIME_PARAMETER = "Social.m"
+KR2021_REGIMES = ("linear", "fluctuation")
+# Representative samples drawn instead of the mean; one per KR2021 regime (linear, fluctuation).
 SPECIAL_MIN_EIGENVALUE_SERIES = {
-	("KR2021", "Inertial"): "results_0006_N2_0020",
+	("KR2021", "Inertial"): ("results_0006_N2_0020", "results_0006_N2_0003"),
 }
-MIN_EIGENVALUE_PLOT_SECONDS = 100.0
-MIN_EIGENVALUE_PLOT_INTERVAL_SECONDS = 1/24
+MIN_EIGENVALUE_PLOT_START_SECONDS = 1.0
+MIN_EIGENVALUE_PLOT_SECONDS = 300.0
+MIN_EIGENVALUE_PLOT_INTERVAL_SECONDS = 1.0
 MIN_EIGENVALUE_LOG_FLOOR = 1e-12
+SPAGHETTI_PLOT_SECONDS = 300.0
 SPAGHETTI_XSCALE = "log"
 SPAGHETTI_YSCALE = "symlog"
 # |value| < linthresh is drawn linearly on spaghetti y axes.
-SPAGHETTI_SYMLOG_LINTHRESH_Y = 1
-SPAGHETTI_SYMLOG_LINSCALE_Y = 0.7
+SPAGHETTI_SYMLOG_LINTHRESH_Y = 0.1
+SPAGHETTI_SYMLOG_LINSCALE_Y = 0.35
 SPAGHETTI_GUIDE_X_START = 5.0
-SPAGHETTI_GUIDE_X_END = 100.0
+SPAGHETTI_GUIDE_X_END = SPAGHETTI_PLOT_SECONDS
 SPAGHETTI_GUIDE_Y_TOP_DIVISOR = 1.5
 # Fraction of the visible axis height by which the slope=1 guide is shifted down.
 SPAGHETTI_GUIDE_AXES_DOWN_SHIFT = 0.2
+# Fraction of the visible axis height by which the sqrt(T) log T guide is shifted up.
+SPAGHETTI_SQRT_GUIDE_AXES_UP_SHIFT = 0.04
+# Inset bounds are (x0, y0, width, height) in main-axes fractions.
+SPAGHETTI_LINEAR_INSET_SECONDS = 10.0
+SPAGHETTI_LINEAR_INSET_BOUNDS = (0.1, 0.64, 0.2, 0.32)
+SPAGHETTI_SLOPE_ONE_INSET_SECONDS = 200.0
+SPAGHETTI_SLOPE_ONE_INSET_BOUNDS = (0.28, 0.47, 0.69, 0.51)
+# Fraction of the main-axes height left empty above the data to hold the slope=1 inset.
+SPAGHETTI_SLOPE_ONE_INSET_HEADROOM = 0.45
+SPAGHETTI_INSET_LOG_XTICKS = (100.0, 200.0, 300.0)
+SPAGHETTI_INSET_LABELSIZE = 8
+SPAGHETTI_LINE_ALPHA = 0.25
+SPAGHETTI_LINEWIDTH = 0.27
 DASHED_LINESTYLE = (0, (2.0, 0.8))
 KINETICS_PLOT_LINESTYLES = {
 	**KINETICS_LINESTYLES,
@@ -455,7 +477,11 @@ def read_time_series(h5_path: Path, label: str = "optimum") -> tuple[list[float]
 	return time_seconds, min_eigenvalues
 
 
-def _load_sample_record(summary_path: Path, ledger_inverse: dict[int, str]) -> SampleRecord | None:
+def _load_sample_record(
+	summary_path: Path,
+	ledger_inverse: dict[int, str],
+	eigenvalue_label: str = "optimum",
+) -> SampleRecord | None:
 	parsed = _parse_result_paths(summary_path)
 	if parsed is None:
 		return None
@@ -468,7 +494,7 @@ def _load_sample_record(summary_path: Path, ledger_inverse: dict[int, str]) -> S
 	with open(summary_path, "r") as f:
 		summary_payload = json.load(f)
 
-	time_seconds, min_eigenvalues = read_time_series(time_series_path)
+	time_seconds, min_eigenvalues = read_time_series(time_series_path, eigenvalue_label)
 	if len(time_seconds) != len(min_eigenvalues) or not time_seconds:
 		return None
 
@@ -505,16 +531,17 @@ def save_paper_figure(fig: plt.Figure, output_path: Path) -> None:
 	print(f"Saved {output_path}")
 
 
-def collect_paper_records(setting_dir: Path, *, apply_exclusions: bool = True) -> list[PaperRecord]:
+def collect_paper_records(
+	setting_dir: Path,
+	*,
+	eigenvalue_label: str = "optimum",
+) -> list[PaperRecord]:
 	setting_name = setting_dir.name
 	ledger_inverse = _load_ledger_inverse(setting_name)
-	excluded_samples = set(EXCLUDED_SAMPLES.get(setting_name, ())) if apply_exclusions else set()
 	records: list[PaperRecord] = []
 
 	for summary_path in sorted(setting_dir.glob("model_*/N*/results_*/summary.json")):
-		if summary_path.parent.name in excluded_samples:
-			continue
-		base_record = _load_sample_record(summary_path, ledger_inverse)
+		base_record = _load_sample_record(summary_path, ledger_inverse, eigenvalue_label)
 		if base_record is None:
 			continue
 
@@ -544,6 +571,29 @@ def collect_paper_records(setting_dir: Path, *, apply_exclusions: bool = True) -
 		)
 
 	return records
+
+
+def kr2021_regime(record: PaperRecord) -> str | None:
+	if record.result_dir is None:
+		return None
+	best_params = read_json(record.result_dir / "summary.json").get("best_params", {})
+	truth_params = _load_truth_params(record.base.setting, record.base.model_id)
+	if truth_params is None:
+		return None
+	estimate = nested_param_value(best_params, KR2021_REGIME_PARAMETER)
+	truth = nested_param_value(truth_params, KR2021_REGIME_PARAMETER)
+	if estimate is None or truth is None:
+		return None
+	return "linear" if estimate < truth else "fluctuation"
+
+
+def split_kr2021_regimes(records: list[PaperRecord]) -> dict[str, list[PaperRecord]]:
+	regimes: dict[str, list[PaperRecord]] = {regime: [] for regime in KR2021_REGIMES}
+	for record in records:
+		regime = kr2021_regime(record)
+		if regime is not None:
+			regimes[regime].append(record)
+	return regimes
 
 
 def record_min_eigenvalue_series(record: PaperRecord) -> tuple[np.ndarray, np.ndarray]:
@@ -642,12 +692,14 @@ def prepare_min_eigenvalue_line(
 	times: np.ndarray,
 	values: np.ndarray,
 	*,
-	xscale: str,
 	yscale: str,
 ) -> tuple[np.ndarray, np.ndarray]:
-	finite_mask = np.isfinite(times) & np.isfinite(values) & (times <= MIN_EIGENVALUE_PLOT_SECONDS)
-	if xscale == "log":
-		finite_mask &= times > 0.0
+	finite_mask = (
+		np.isfinite(times)
+		& np.isfinite(values)
+		& (times >= MIN_EIGENVALUE_PLOT_START_SECONDS)
+		& (times <= SPAGHETTI_PLOT_SECONDS)
+	)
 	times = times[finite_mask]
 	values = values[finite_mask]
 	if yscale == "log":
@@ -673,15 +725,12 @@ def style_min_eigenvalue_axis(
 	*,
 	xscale: str,
 	yscale: str,
-	x_values: list[np.ndarray],
 	y_values: list[np.ndarray],
-	identifiable: bool,
+	guide: str | None,
 ) -> None:
 	_apply_axis_scale(ax, "x", xscale)
 	_apply_axis_scale(ax, "y", yscale)
-	if x_values:
-		left = max(min(float(np.nanmin(times)) for times in x_values), np.finfo(float).tiny) if xscale == "log" else 0.0
-		ax.set_xlim(left=left, right=MIN_EIGENVALUE_PLOT_SECONDS)
+	ax.set_xlim(left=MIN_EIGENVALUE_PLOT_START_SECONDS, right=SPAGHETTI_PLOT_SECONDS)
 	if yscale == "log" and y_values:
 		finite_mins = [float(np.nanmin(values)) for values in y_values if np.any(np.isfinite(values))]
 		if finite_mins:
@@ -693,16 +742,90 @@ def style_min_eigenvalue_axis(
 	}
 	ax.set_xlim(ax.get_xlim())
 	ax.set_ylim(ax.get_ylim())
-	if identifiable:
-		n_lines, n_texts = len(ax.lines), len(ax.texts)
+	n_lines, n_texts = len(ax.lines), len(ax.texts)
+	if guide == "slope_one":
 		add_slope_one_guide(ax, **guide_kwargs)
 		_shift_artists_down(ax, ax.lines[n_lines:], ax.texts[n_texts:], SPAGHETTI_GUIDE_AXES_DOWN_SHIFT)
-	else:
+	elif guide == "sqrt_log":
 		add_sqrt_x_log_x_guide(ax, **guide_kwargs)
-	ax.set_xlabel("Time (s)")
-	ax.set_ylabel(r"$\lambda^{\mathrm{min}}$ (Symlog-scaled)")
+		_shift_artists_down(ax, ax.lines[n_lines:], ax.texts[n_texts:], -SPAGHETTI_SQRT_GUIDE_AXES_UP_SHIFT)
+	ax.set_xlabel("Time [s]")
+	ax.set_ylabel(r"$\lambda^{\mathrm{min}}$")
 	ax.grid(True, which="both", linestyle=DASHED_LINESTYLE, alpha=0.25)
 	sns.despine(ax=ax)
+
+
+def _extend_top_headroom(ax: plt.Axes, fraction: float) -> None:
+	data_bottom, data_top = ax.get_ylim()
+	major_ticks = [tick for tick in ax.get_yticks() if data_bottom <= tick <= data_top]
+	minor_ticks = [tick for tick in ax.get_yticks(minor=True) if data_bottom <= tick <= data_top]
+	transform = ax.yaxis.get_transform()
+	bottom, top = transform.transform(np.asarray([data_bottom, data_top]))
+	new_top = bottom + (top - bottom) / (1.0 - fraction)
+	ax.set_ylim(data_bottom, float(transform.inverted().transform(np.asarray([new_top]))[0]))
+	ax.set_yticks(major_ticks)
+	ax.set_yticks(minor_ticks, minor=True)
+	ax.spines["left"].set_bounds(data_bottom, data_top)
+
+
+def _tail_lines(
+	lines: list[tuple[np.ndarray, np.ndarray]],
+	seconds: float,
+) -> list[tuple[np.ndarray, np.ndarray]]:
+	start = SPAGHETTI_PLOT_SECONDS - seconds
+	return [(times[times >= start], values[times >= start]) for times, values in lines]
+
+
+def _style_inset(inset: plt.Axes) -> None:
+	inset.tick_params(labelsize=SPAGHETTI_INSET_LABELSIZE)
+	inset.yaxis.get_offset_text().set_fontsize(SPAGHETTI_INSET_LABELSIZE)
+	inset.grid(True, which="major", linestyle=DASHED_LINESTYLE, alpha=0.25)
+	inset.set_facecolor("white")
+
+
+def add_linear_tail_inset(
+	ax: plt.Axes,
+	lines: list[tuple[np.ndarray, np.ndarray]],
+	color,
+	*,
+	seconds: float,
+	bounds: tuple[float, float, float, float],
+	line_alpha: float,
+	linewidth: float,
+) -> None:
+	inset = ax.inset_axes(bounds)
+	for times, values in _tail_lines(lines, seconds):
+		inset.plot(times, values, color=color, linestyle="-", linewidth=linewidth, alpha=line_alpha)
+	inset.set_xlim(SPAGHETTI_PLOT_SECONDS - seconds, SPAGHETTI_PLOT_SECONDS)
+	_style_inset(inset)
+
+
+def add_slope_one_tail_inset(
+	ax: plt.Axes,
+	lines: list[tuple[np.ndarray, np.ndarray]],
+	color,
+	*,
+	seconds: float,
+	bounds: tuple[float, float, float, float],
+	line_alpha: float,
+	linewidth: float,
+) -> None:
+	start = SPAGHETTI_PLOT_SECONDS - seconds
+	inset = ax.inset_axes(bounds)
+	for times, values in _tail_lines(lines, seconds):
+		values = np.where(values > MIN_EIGENVALUE_LOG_FLOOR, values, np.nan)
+		inset.plot(times, values, color=color, linestyle="-", linewidth=linewidth, alpha=line_alpha)
+	inset.set_xscale("log")
+	inset.set_yscale("log")
+	inset.set_xlim(start, SPAGHETTI_PLOT_SECONDS)
+	inset.set_xticks([tick for tick in SPAGHETTI_INSET_LOG_XTICKS if start <= tick <= SPAGHETTI_PLOT_SECONDS])
+	inset.xaxis.set_major_formatter(ScalarFormatter())
+	inset.xaxis.set_minor_formatter(NullFormatter())
+	inset.set_ylim(inset.get_ylim())
+	n_lines, n_texts = len(inset.lines), len(inset.texts)
+	add_slope_one_guide(inset, x_start=start, x_end=SPAGHETTI_PLOT_SECONDS, y_top_divisor=SPAGHETTI_GUIDE_Y_TOP_DIVISOR)
+	_shift_artists_down(inset, inset.lines[n_lines:], inset.texts[n_texts:], SPAGHETTI_GUIDE_AXES_DOWN_SHIFT)
+	_style_inset(inset)
 
 
 def plot_spaghetti_min_eigenvalue(
@@ -711,30 +834,23 @@ def plot_spaghetti_min_eigenvalue(
 	*,
 	figsize: tuple[float, float],
 	color,
+	guide: str | None,
+	inset: str | None = None,
 	title: str | None = None,
-	line_alpha: float = 0.3,
-	linewidth: float = 0.3,
+	line_alpha: float = SPAGHETTI_LINE_ALPHA,
+	linewidth: float = SPAGHETTI_LINEWIDTH,
 ) -> None:
 	fig, ax = plt.subplots(figsize=figsize)
-	x_values: list[np.ndarray] = []
-	y_values: list[np.ndarray] = []
-	n_lines = 0
+	lines: list[tuple[np.ndarray, np.ndarray]] = []
 	for record in sorted(records, key=lambda item: item.base.sample_name):
 		times, values = downsample_min_eigenvalue_series(*record_min_eigenvalue_series(record))
-		times, values = prepare_min_eigenvalue_line(
-			times,
-			values,
-			xscale=SPAGHETTI_XSCALE,
-			yscale=SPAGHETTI_YSCALE,
-		)
+		times, values = prepare_min_eigenvalue_line(times, values, yscale=SPAGHETTI_YSCALE)
 		if times.size < 2 or np.count_nonzero(np.isfinite(values)) < 2:
 			continue
-		x_values.append(times)
-		y_values.append(values[np.isfinite(values)])
+		lines.append((times, values))
 		ax.plot(times, values, color=color, linestyle="-", linewidth=linewidth, alpha=line_alpha)
-		n_lines += 1
 
-	if n_lines == 0:
+	if not lines:
 		print(f"[{output_path.parent.parent.name}] No spaghetti lines for {output_path.name}; skipping.")
 		plt.close(fig)
 		return
@@ -743,10 +859,29 @@ def plot_spaghetti_min_eigenvalue(
 		ax,
 		xscale=SPAGHETTI_XSCALE,
 		yscale=SPAGHETTI_YSCALE,
-		x_values=x_values,
-		y_values=y_values,
-		identifiable=records[0].group not in MIN_EIGENVALUE_BOTTOM_MODELS,
+		y_values=[values[np.isfinite(values)] for _, values in lines],
+		guide=guide,
 	)
+	inset_kwargs = {"line_alpha": line_alpha, "linewidth": linewidth}
+	if inset == "linear_tail":
+		add_linear_tail_inset(
+			ax,
+			lines,
+			color,
+			seconds=SPAGHETTI_LINEAR_INSET_SECONDS,
+			bounds=SPAGHETTI_LINEAR_INSET_BOUNDS,
+			**inset_kwargs,
+		)
+	elif inset == "slope_one_tail":
+		_extend_top_headroom(ax, SPAGHETTI_SLOPE_ONE_INSET_HEADROOM)
+		add_slope_one_tail_inset(
+			ax,
+			lines,
+			color,
+			seconds=SPAGHETTI_SLOPE_ONE_INSET_SECONDS,
+			bounds=SPAGHETTI_SLOPE_ONE_INSET_BOUNDS,
+			**inset_kwargs,
+		)
 	if title:
 		ax.set_title(title)
 	fig.tight_layout()
@@ -788,7 +923,7 @@ def run_for_settings(
 	args: argparse.Namespace | None = None,
 	*,
 	description: str = "",
-	apply_exclusions: bool = True,
+	eigenvalue_label: str = "optimum",
 ) -> None:
 	if args is None:
 		args = parse_common_args(description)
@@ -797,7 +932,7 @@ def run_for_settings(
 	if not setting_dirs:
 		raise FileNotFoundError(f"No setting directories found under {args.results_root}")
 	for setting_dir in setting_dirs:
-		records = collect_paper_records(setting_dir, apply_exclusions=apply_exclusions)
+		records = collect_paper_records(setting_dir, eigenvalue_label=eigenvalue_label)
 		if not records:
 			print(f"No completed paper-figure records found under {setting_dir}; skipping.")
 			continue
