@@ -36,6 +36,8 @@ KR2021_REGIME_INSET_OPTIONS = {
 # Merged KR2021 Inertial panel: both regimes on one axes.
 KR2021_INERTIAL_GUIDE_INSET = (None, None)
 KR2021_INERTIAL_OPTIONS = {"main_ytick_stride": 2}
+# TK2020 at N>2 (decoupled cohesion/separation) spans many decades.
+TK2020_DECOUPLED_OPTIONS = {"main_ytick_stride": 2}
 
 
 def _spaghetti_panels(
@@ -64,6 +66,8 @@ def _spaghetti_panels(
 	if group == "TK2020" and num_agents == MAIN_TEXT_NUM_AGENT:
 		inset = "linear_tail" if tk2020_linear_tail_inset else None
 		return [(cell, f"{group}_{kinetics}", "sqrt_log", inset, {})]
+	if group == "TK2020":
+		return [(cell, f"{group}_{kinetics}", "slope_one", None, TK2020_DECOUPLED_OPTIONS)]
 	return [(cell, f"{group}_{kinetics}", "slope_one", None, {})]
 
 

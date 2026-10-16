@@ -49,7 +49,7 @@ class EstimationConfig:
                 "sigma_theta": ((1e-5, jnp.inf), (1e-5, 20.0)),
             },
             "Dynamics_Inertial": {
-                "sigma_omega": ((1e-5, jnp.inf), (1e-5, 50.0)),
+                "sigma_omega": ((1e-5, jnp.inf), (1e-5, 20.0)),
                 "tau": ((1e-5, jnp.inf), (1e-5, 5.0)),
             },
         },
