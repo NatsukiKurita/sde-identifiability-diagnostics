@@ -46,11 +46,11 @@ class EstimationConfig:
     MODEL_RANGES = {
         "Kinetics": {
             "Dynamics_Overdamped": {
-                "sigma_theta": ((1e-5, jnp.inf), (1e-5, 20.0)),
+                "sigma_theta": ((0.0, jnp.inf), (1e-5, 20.0)),
             },
             "Dynamics_Inertial": {
-                "sigma_omega": ((1e-5, jnp.inf), (1e-5, 20.0)),
-                "tau": ((1e-5, jnp.inf), (1e-5, 5.0)),
+                "sigma_omega": ((0.0, jnp.inf), (1e-5, 20.0)),
+                "tau": ((0.0, jnp.inf), (1e-5, 5.0)),
             },
         },
         "Social": {

@@ -8,6 +8,7 @@ Run commands from the repository root. Simulation output is written under `data/
 
 ### Prerequisites
 
+- Python 3.10 or later (required by `jax==0.6.2`).
 - Python dependencies (`toml`, `jax`, `h5py`, and the rest of `src/requirements.txt`) are installed into `.venv` at the repository root.
 - The simulation stage requires Julia.
 - Run setup once before the analysis pipeline.
@@ -25,17 +26,17 @@ Run commands from the repository root. Simulation output is written under `data/
 
 #### Julia and system toolchain
 
-The simulations were developed and tested with Julia 1.12.6. For reproducibility, install this version with [Juliaup](https://github.com/JuliaLang/juliaup) if Julia is not already available:
+The Julia environments (`src/flocking_models/Manifest.toml` and `src/QMLE/estimator_modules/Neighbor/jl_delaunay_restoration/project_config/Manifest.toml`) were resolved with Julia 1.12.3. For reproducibility, install this version with [Juliaup](https://github.com/JuliaLang/juliaup) if Julia is not already available:
 
 ```bash
 curl -fsSL https://install.julialang.org | sh
 ```
 
-After the installation completes, restart the terminal so that the updated `PATH` takes effect. Then install and select Julia 1.12.6:
+After the installation completes, restart the terminal so that the updated `PATH` takes effect. Then install and select Julia 1.12.3:
 
 ```bash
-juliaup add 1.12.6
-juliaup default 1.12.6
+juliaup add 1.12.3
+juliaup default 1.12.3
 julia --version
 ```
 
@@ -164,10 +165,10 @@ Each figure script reads `results/<setting>/` (minimum eigenvalues from `results
 | Script | Figure | Output files / directory |
 |--------|--------|---------------------------|
 | `fig01_min_eigenvalue_timeseries.py` | Mean (or representative) minimum-eigenvalue time series | `figures/min_eigenvalue_timeseries/identifiable.pdf` (Null, G2012, KV; log–log); `unidentifiable.pdf` (TK2020 plus KR2021 **fluctuation** samples, linear axes, fixed y-limits); `linear_KR2021.pdf` (KR2021 **linear** samples only). KR2021 linear vs fluctuation is split by whether the estimated `Social.m` is below or above the truth. KR2021 Inertial curves use representative samples where noted in `_common.py` (`SPECIAL_MIN_EIGENVALUE_SERIES`). |
-| `fig02_spaghetti.py` | Spaghetti charts of the minimum eigenvalue for every social model and kinetics | `figures/spaghetti/`. Identifiable models (Null, G2012, KV): slope=1 guide. TK2020: \(\sqrt{t}\log t\) guide and a **linear–linear inset** over the last 10 s. KR2021 Overdamped: separate `*_linear` and `*_fluctuation` panels. KR2021 Inertial: **one merged panel** (`KR2021_Inertial.pdf`) with no guide and no inset. |
+| `fig02_spaghetti.py` | Spaghetti charts of the minimum eigenvalue for every social model and kinetics | `figures/spaghetti/`. Identifiable models (Null, G2012, KV): slope=1 guide. TK2020: \(\sqrt{t}\log t\) guide and a **linear–linear inset** over the last 10 s. KR2021 Overdamped: separate panels; `KR2021_Overdamped_linear.pdf` has no main-axes guide and a **log–log inset** over the last 200 s with a slope=1 guide, and `KR2021_Overdamped_fluctuation.pdf` has a \(\sqrt{t}\log t\) guide and no inset. KR2021 Inertial: **one merged panel** (`KR2021_Inertial.pdf`) with no guide and no inset. |
 | `fig03_degeneracy_scatter.py` | Estimates on the degenerate parameter pair with the theoretical manifold and ground truth | `figures/degeneracy_scatter/TK2020.pdf` (linear axes), `KR2021.pdf` (log–log axes) |
 | `fig04_error_evolution.py` | Worst relative error (max absolute log estimated/true ratio) vs time | `figures/error_plot/Overdamped/` and `figures/error_plot/Inertial/`, each with `error_plot_identifiable.pdf` and `error_plot_unidentifiable.pdf` |
-| `fig05_relative_distance.py` | Post-burn-in distribution of \(d/d^{\mathrm{eq}}\) for KR2021 N=2 | `figures/relative_distance/KR2021.pdf` (x-axis limited to 4; narrow histogram bins) |
+| `fig05_relative_distance.py` | Post-burn-in distribution of \(d/d^{\mathrm{eq}}\) for KR2021 N=2 | `figures/relative_distance/KR2021.pdf` (x-axis limited to 3.5; 350 histogram bins) |
 
 Shared options:
 
@@ -183,7 +184,7 @@ Shared options:
 | `01_example_trajectories.py` | A short example trajectory for every simulation model | `results/04_supplemental_figures/method/example_trajectories/` |
 | `00_method.py` | Minimum-eigenvalue trajectories for an identifiable sample and an unidentifiable sample | `results/04_supplemental_figures/method/` |
 | `02_n4_spaghetti.py` | Spaghetti charts for **every** social model and kinetics at **N = 4** (same panel logic as fig02 via `fig02_spaghetti.plot_for_setting`; TK2020 at N=4 uses the slope=1 guide because cohesion and separation decouple) | `results/04_supplemental_figures/n4_spaghetti/<setting>/spaghetti/` |
-| `04_truth_diagnostics.py` | Same layouts as fig01 and fig02, but minimum eigenvalues from `results/truth` in `result_time_series.h5`. **KR2021 is not split** by estimated-\(m\) regime (one panel per kinetics). **TK2020 spaghetti has no terminal linear inset.** Fig01 truth outputs: `identifiable.pdf`, `unidentifiable.pdf` (TK2020 only), `KR2021.pdf` (all KR2021 samples). | `results/04_supplemental_figures/truth_diagnostics/<setting>/` |
+| `04_truth_diagnostics.py` | Same layouts as fig01 and fig02, but minimum eigenvalues from `results/truth` in `result_time_series.h5`. **KR2021 is not split** by estimated-\(m\) regime (one panel per kinetics, each drawn like the fig02 linear panel with the 200 s log–log inset). **TK2020 spaghetti has no terminal linear inset.** Fig01 truth outputs: `identifiable.pdf`, `unidentifiable.pdf` (TK2020 only), `KR2021.pdf` (all KR2021 samples). | `results/04_supplemental_figures/truth_diagnostics/<setting>/` |
 
 `00_method.py` reads `results/optimum` from `result_time_series.h5` (or a result directory or `summary.json` that points at it). Its built-in sample paths are under `results/setting_1`. It does not take `--setting`.
 

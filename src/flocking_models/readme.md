@@ -1,169 +1,174 @@
-# モデルの追加方法
+# Adding a model
 
-モデルはモジュール化されているため、kinetics、social interaction、neighbor algorithm を別個に追加できます。シミュレーションは開放領域（open field）で行い、壁との相互作用はありません。`SimRunner.jl` 内で `Physics/` 以下の各ディレクトリにある `.jl` コードが自動的に `include` されるので、ユーザーは `.jl` を適切なディレクトリに置くだけで Julia 側の登録は完了します。近傍は Voronoi 隣接に固定されており、TOML では選びません。Social が読む `neighbor_buffers.weights` のため、近傍バッファ自体は残しています。
+The simulator is modular: kinetics and social interactions can be added independently. Simulations run in an open field with no walls. `SimRunner.jl` automatically `include`s every `.jl` file under the `Physics/` subdirectories, so placing a file in the right directory is all that is needed on the Julia side. Neighbors are fixed to Voronoi adjacency and are not selected in the TOML. The neighbor buffer is still kept because social modules read `neighbor_buffers.weights`.
 
-なお、Python 側のパラメータ設定（`src/experiment_configs/parameter_presets/` のプリセット、
-`src/QMLE/estimator_modules/` の推定器、`src/experiment_configs/estimation.py` の最適化境界）は別途追加する必要があります。
+The Python side (presets in `src/experiment_configs/parameter_presets/`, estimators in `src/QMLE/estimator_modules/`, and optimizer bounds in `src/experiment_configs/estimation.py`) must be updated separately.
 
 ---
 
-## 共通仕様
+## Common conventions
 
-### 配置場所
+### File locations
 
-| カテゴリ       | ディレクトリ |
-|---------------|--------------|
-| Kinetics      | `jl_src/Physics/Kinetics/` |
-| Social        | `jl_src/Physics/Social/` |
-| Neighbor      | `jl_src/Physics/Neighbor/` |
+| Category | Directory |
+|----------|-----------|
+| Kinetics | `jl_src/Physics/Kinetics/` |
+| Social   | `jl_src/Physics/Social/` |
+| Neighbor | `jl_src/Physics/Neighbor/` |
 
-`SimRunner.jl` は各ディレクトリ内の `.jl` をファイル名の辞書順で読み込みます。
-重要：Physics モジュール間の `import` 依存は避け、各ファイルを自己完結させてください。
+`SimRunner.jl` includes the `Kinetics`, `Social`, and `Neighbor` directories in that order, and the `.jl` files within each directory in lexicographic order of file name.
+Important: avoid `import` dependencies between Physics modules and keep each file self-contained.
 
-### モジュール名・構造体名・TOML の `type`
+### Module names, struct names, and the TOML `type`
 
-`ConfigParser.build_component` は **モジュール名とパラメータ構造体名が一致** することを前提に型を解決します。TOML の `type` にはその名前を文字列で書きます。
+`ConfigParser.build_component` resolves the type by assuming that **the module name and the parameter struct name are identical**. The TOML `type` field holds that name as a string.
 
-| カテゴリ | ファイル例 | モジュール名 / 構造体名 | TOML の `type` |
-|----------|------------|-------------------------|----------------|
+| Category | Example file | Module / struct name | TOML `type` |
+|----------|--------------|----------------------|-------------|
 | Kinetics | `Overdamped.jl` | `Dynamics_Overdamped` | `"Dynamics_Overdamped"` |
-| Social | `KR2021.jl` | `Soc_KR2021` | `"Soc_KR2021"` |
-| Neighbor | `Voronoi.jl` | `Neighbor_Voronoi` | 固定（TOML に書かない） |
+| Social   | `KR2021.jl` | `Soc_KR2021` | `"Soc_KR2021"` |
+| Neighbor | `Voronoi.jl` | `Neighbor_Voronoi` | Fixed (not written in the TOML) |
 
-命名規則のまとめ:
+Naming rules:
 
-- **Kinetics**: モジュール名・構造体名に `Dynamics_` プレフィックスを付ける
-- **Social**: モジュール名・構造体名に `Soc_` プレフィックスを付ける
-- **Neighbor**: モジュール名・構造体名に `Neighbor_` プレフィックスを付ける。実行時は `Neighbor_Voronoi` のみを使う
+- **Kinetics**: module and struct names use the `Dynamics_` prefix
+- **Social**: module and struct names use the `Soc_` prefix
+- **Neighbor**: module and struct names use the `Neighbor_` prefix. Only `Neighbor_Voronoi` is used at run time
 
-### パラメータ構造体と TOML
+### Parameter structs and the TOML
 
-パラメータ構造体の **フィールド名** が TOML のキーになります（`ConfigParser` が `fieldnames` から読み取る）。
+The **field names** of the parameter struct are the TOML keys (`ConfigParser` reads them with `fieldnames`). Every field must be present in the TOML. For example, `scripts/01_simulation/00_prepare_toml.py` writes the following section for KR2021 in `setting_1`:
 
 ```toml
 [Social]
 type = "Soc_KR2021"
-k_alg = 0.4
-k_pos = 0.8
-m = 0.8
-d_eq = 0.1
+k_alg = 1.0
+k_pos = 1.0
+m = 1.0
+d_eq = 0.02
 ```
 
-例外: Kinetics の `v_0` は `[Simulation]` の `v_0` から注入されるため、Kinetics セクションには書きません（構造体には `v_0` フィールドが必要）。
+Exception: the kinetics `v_0` is injected from `v_0` in the `[Simulation]` section, so it is not written in the `[Kinetics]` section (the kinetics struct still needs a `v_0` field).
 
-### シミュレーションループでの役割分担
+### Roles in the simulation loop
 
-1. `update_neighbors!` — 近傍バッファ更新
-2. `reset_buffers!` — social バッファをリセット
-3. `calculate_social_interactions!` — `social_factor` を書き込み
-4. `update_state_by_kinetics!` — 状態（位置・速度・向きなど）を更新
+`Core/Simulation.jl` calls the following functions in this order at every step:
 
-Social は **kinetics が読めるスカラー因子** `social_factor` をバッファに書き、Kinetics がそれを使って状態を更新します。
+1. `update_neighbors!` — update the neighbor buffer
+2. `reset_buffers!` — reset the social buffer
+3. `calculate_social_interactions!` — write `social_factor`
+4. `update_state_by_kinetics!` — update the state (positions, velocities, orientations, and so on)
+
+The social module writes a **scalar factor** `social_factor` that the kinetics module reads, and the kinetics module uses it to update the state.
 
 ---
 
 ## Kinetics
 
-**参照実装**: `Physics/Kinetics/Overdamped.jl`, `Inertial.jl`
+**Reference implementations**: `Physics/Kinetics/Overdamped.jl`, `Inertial.jl`
 
-### 定義するもの
+### What to define
 
-1. **パラメータ構造体** `<名前>{T} <: AbstractKinetics`
-   - 必須フィールド: `v_0::T`（TOML では `[Simulation]` から供給）
-   - その他のパラメータは自由（例: Overdamped の `sigma_theta`、Inertial の `sigma_omega`, `tau`）
+1. **Parameter struct** `Dynamics_<Name>{T} <: AbstractKinetics`
+   - Required field: `v_0::T` (supplied from `[Simulation]` in the TOML)
+   - Other parameters are free (for example `sigma_theta` for Overdamped, and `sigma_omega` and `tau` for Inertial)
 
-2. **状態構造体** `State_<名前>{T} <: AbstractState`
-   - 必須フィールド: `positions`, `velocities`, `orientations`（エージェント数分の `Vector`）
-   - 角速度モデルの場合は `ang_vel::Vector{T}` を追加（`Simulation.jl` が `hasproperty(states, :ang_vel)` で HDF5 保存を分岐）
+2. **State struct** `State_<Name>{T} <: AbstractState` (for example `State_Overdamped`, `State_Inertial`)
+   - Required fields: `positions::Vector{SVector{2, T}}`, `velocities::Vector{SVector{2, T}}`, `orientations::Vector{T}` (one entry per agent)
+   - Angular-velocity models add `ang_vel::Vector{T}`. `Simulation.jl` checks `hasproperty(states, :ang_vel)` to record it, and `SimIO.jl` writes it to the HDF5 dataset `angular_velocities`
 
-3. **必須関数**
+3. **Required functions**
 
-   | 関数 | 役割 |
-   |------|------|
-   | `allocate_states(kinetics, num_agents)` | 状態の初期配列を返す |
-   | `update_state_by_kinetics!(kinetics, states, social_buffers, dt, rng)` | 1 ステップ更新 |
-   | `copy_state!(dest, src)` | 状態のコピー |
+   | Function | Role |
+   |----------|------|
+   | `allocate_states(kinetics, num_agents)` | Return a zero-initialized state |
+   | `update_state_by_kinetics!(kinetics, states, social_buffers, dt, rng)` | Advance the state by one step |
 
-### 注意
+   The existing modules also define `copy_state!(dest, src)`, but the simulator does not call it.
 
-- `social_buffers.social_factor[i]` を読み取り、モデルに応じて向き・角速度などに反映する
-- バッファ型は `AbstractBuffer` として受け取り、`.social_factor` フィールド名に依存する（インターフェース上の暗黙の契約）
-- `import ..Types: AbstractKinetics, AbstractState, AbstractBuffer, allocate_states, update_state_by_kinetics!, copy_state!`
+### Notes
+
+- Initial conditions are set by `Common/InitState.jl`, not by the kinetics module: positions are uniform in \([0, 1)^2\), orientations are uniform in \([-\pi, \pi)\), velocities are `v_0` times the heading, and `ang_vel` (if present) is zero
+- Read `social_buffers.social_factor[i]` and apply it to the orientation, angular velocity, or other state as the model requires
+- The buffer is received as an `AbstractBuffer`, and the code relies on the field name `.social_factor` (an implicit interface contract)
+- `import ..Types: AbstractKinetics, AbstractState, AbstractBuffer, allocate_states, update_state_by_kinetics!`
 
 ---
 
 ## Social interaction
 
-**参照実装**: `Physics/Social/KR2021.jl`, `Null.jl`
+**Reference implementations**: `Physics/Social/KR2021.jl`, `Null.jl`
 
-### 定義するもの
+### What to define
 
-1. **パラメータ構造体** `<名前> <: AbstractSocial`（パラメータなしも可）
+1. **Parameter struct** `Soc_<Name> <: AbstractSocial` (may have no parameters)
 
-2. **バッファ構造体** `Buffer_<名前>{T} <: AbstractBuffer`
-   - **必須フィールド**: `social_factor::Vector{T}`（長さ = エージェント数）
-   - kinetics がステップごとに参照する
+2. **Buffer struct** `Buffer_Soc_<Name>{T} <: AbstractBuffer`
+   - **Required field**: `social_factor::Vector{T}` (length = number of agents)
+   - The kinetics module reads it at every step
 
-3. **必須関数**
+3. **Required functions**
 
-   | 関数 | 役割 |
-   |------|------|
-   | `allocate_social_buffers(social, num_agents, T)` | バッファ生成 |
-   | `reset_buffers!(buffers)` | 毎ステップ開始時に `social_factor` をゼロクリア |
-   | `calculate_social_interactions!(kinetics, social, states, social_buffers, neighbor_buffers, safe_eps)` | 相互作用を計算し `social_factor` に書き込む |
+   | Function | Role |
+   |----------|------|
+   | `allocate_social_buffers(social, num_agents, T)` | Create the buffer |
+   | `reset_buffers!(buffers)` | Zero `social_factor` at the start of every step |
+   | `calculate_social_interactions!(kinetics, social, states, social_buffers, neighbor_buffers, safe_eps)` | Compute the interaction and write it to `social_factor` |
 
-### 注意
+### Notes
 
-- 近傍情報は `neighbor_buffers.weights[i, j]` を使う（`> 0` なら近傍）
-- 既存モデルでは、2 次元力を進行方向法線へ射影し、`kinetics.v_0` で割って無次元化している:
+- Use `neighbor_buffers.weights[i, j]` for neighbor information (`> 0` means `j` is a neighbor of `i`)
+- The existing models project the 2D force onto the normal of the heading and divide by `kinetics.v_0` to make it dimensionless:
   `social_buffers.social_factor[i] = dot(force, SVector(-s, c)) / kinetics.v_0`
-- 相互作用なしモデルでも、空のパラメータ構造体と `social_factor = 0` を書くバッファは必要
+- A model without interactions still needs an empty parameter struct and a buffer whose `social_factor` is set to zero
 
 ---
 
 ## Neighbor algorithm
 
-近傍は Voronoi 隣接に固定です。`SimRunner` が `Neighbor_Voronoi` を生成し、`run_simulation` に渡します。隣接グラフの計算には `DelaunayTriangulation` を使います（ドロネー辺が Voronoi 隣接に一致します）。
+Neighbors are fixed to Voronoi adjacency. `SimRunner.execute_simulation` creates `Neighbor_Voronoi.Neighbor_Voronoi()` and passes it to `run_simulation`. The adjacency graph is computed with `DelaunayTriangulation` (Delaunay edges coincide with Voronoi adjacency). Using a different neighbor method requires editing `SimRunner.jl`, and also the estimator side, which reconstructs Delaunay neighbors in `src/QMLE/estimator_modules/Neighbor/Delaunay.py`.
 
-**参照実装**: `Physics/Neighbor/Voronoi.jl`
+**Reference implementation**: `Physics/Neighbor/Voronoi.jl`
 
-### 定義するもの
+### What to define
 
-1. **パラメータ構造体** `<名前> <: AbstractNeighborMethod`（パラメータなしも可）
+1. **Parameter struct** `Neighbor_<Name> <: AbstractNeighborMethod` (may have no parameters)
 
-2. **バッファ構造体** `NeighborBuffer_<名前>{T} <: AbstractBuffer`
-   - 典型例: `weights::Matrix{T}`（`num_agents × num_agents`）
-   - `weights[i, j] > 0` のとき、エージェント `j` が `i` の近傍
+2. **Buffer struct** `NeighborBuffer_<Name>{T} <: AbstractBuffer` (for example `NeighborBuffer_Voronoi`)
+   - Typical field: `weights::Matrix{T}` (`num_agents × num_agents`)
+   - `weights[i, j] > 0` means agent `j` is a neighbor of agent `i`
 
-3. **必須関数**
+3. **Required functions**
 
-   | 関数 | 役割 |
-   |------|------|
-   | `allocate_neighbor_buffers(neighbor_method, num_agents, T)` | バッファ生成 |
-   | `update_neighbors!(neighbor_method, state, neighbor_buffer, rng)` | 毎ステップ、近傍行列を更新 |
+   | Function | Role |
+   |----------|------|
+   | `allocate_neighbor_buffers(neighbor_method, num_agents, T)` | Create the buffer |
+   | `update_neighbors!(neighbor_method, state, neighbor_buffer, rng)` | Overwrite the neighbor matrix at every step |
 
-### 注意
+### Notes
 
-- Social モジュールは `neighbor_buffers.weights` の存在を前提とする
-- Voronoi 実装では行ごとに正規化（和が 1）しているが、0/1 のみでも可。Social 側の実装と整合させる
-- `reset_buffers!` は Neighbor には不要（`update_neighbors!` 内で上書き）
-
----
-
-## Python 側の追加手順（Julia とは別）
-
-1. `src/QMLE/estimator_modules/` の対応するカテゴリに推定器を追加
-2. `src/experiment_configs/parameter_presets/setting_*.toml` の `[modules]` にモジュール名を、`[parameters.<カテゴリ>.<モジュール名>]` にパラメータを追加
-3. `src/experiment_configs/estimation.py` に最適化境界を追加
-4. `scripts/01_simulation/00_prepare_toml.py` を実行して TOML を再生成
+- Social modules assume that `neighbor_buffers.weights` exists
+- The Voronoi implementation normalizes each row to sum to 1 when there are three or more agents. With two agents it skips the triangulation and sets `weights[1, 2] = weights[2, 1] = 1`. Keep the social modules consistent with these weights
+- Neighbor modules do not need `reset_buffers!` (`update_neighbors!` overwrites the buffer)
 
 ---
 
-## その他の実装上の注意
+## Python-side steps (separate from Julia)
 
-### ビルド時の DelaunayTriangulation
+1. Add an estimator to the matching category in `src/QMLE/estimator_modules/` (`Kinetics/` or `Social/`) and register it with `@registry.register_kinetics("Dynamics_<Name>")` or `@registry.register_social("Soc_<Name>")` from `src/QMLE/registry.py`. Modules in these directories are imported automatically by `src/QMLE/builder.py`
+2. In `src/experiment_configs/parameter_presets/setting_*.toml`, add the module name under `[modules]` and its parameters under `[parameters.<Category>.<module name>]`
+3. Add the optimizer bounds and multistart initial ranges to `MODEL_RANGES` in `src/experiment_configs/estimation.py`
+4. Run `scripts/01_simulation/00_prepare_toml.py` to regenerate the TOML files
+5. Rebuild the sysimage with `./run_setup.sh julia` so that the new model is included in the precompile run
+6. To include a new social model in the paper figures, add it to `ALL_SOCIAL_MODELS` in `scripts/04_figures/_common.py`
 
-`DelaunayTriangulation` の precompile が重く、メモリ不足で失敗することがあります。その場合はスワップを確保してから実行してください。
+---
+
+## Other implementation notes
+
+### DelaunayTriangulation during the build
+
+Precompiling `DelaunayTriangulation` is heavy and can fail when memory runs out (the sysimage build needs roughly 9 GB). In that case, allocate swap space before running the build:
 
 ```bash
 sudo fallocate -l 8G /swapfile_large
