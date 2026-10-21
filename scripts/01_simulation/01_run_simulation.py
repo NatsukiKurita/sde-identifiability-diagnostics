@@ -19,13 +19,16 @@ if str(PROJECT_ROOT) not in sys.path:
 
 
 def restore_delaunay_neighbors_all(data_h5_root: Path) -> None:
+	from src.paths import julia_executable
+
+	julia = julia_executable()
 	jl_root = PROJECT_ROOT / "src/QMLE/estimator_modules/Neighbor/jl_delaunay_restoration"
 	jl_project_path = jl_root / "project_config"
 	jl_script_path = jl_root / "delaunay_restoration_backend.jl"
 
 	subprocess.run(
 		[
-			"julia",
+			julia,
 			f"--project={jl_project_path}",
 			"-e",
 			"using Pkg; Pkg.instantiate()",
@@ -35,7 +38,7 @@ def restore_delaunay_neighbors_all(data_h5_root: Path) -> None:
 
 	subprocess.run(
 		[
-			"julia",
+			julia,
 			f"--project={jl_project_path}",
 			str(jl_script_path),
 			"--data_h5_root",
@@ -69,11 +72,11 @@ def resolve_sysimage(use_sysimage: bool) -> Path | None:
 
 
 def run_simulation_for_setting(setting_root: Path, overwrite: bool, sysimage: Path | None) -> None:
-	from src.paths import JULIA_PROJECT_DIR
+	from src.paths import JULIA_PROJECT_DIR, julia_executable
 
 	julia_script_path = JULIA_PROJECT_DIR / "main_all.jl"
 
-	command = ["julia", f"--project={JULIA_PROJECT_DIR}"]
+	command = [julia_executable(), f"--project={JULIA_PROJECT_DIR}"]
 	if sysimage is not None:
 		command.append(f"--sysimage={sysimage}")
 	command += [

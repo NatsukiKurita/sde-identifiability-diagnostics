@@ -8,9 +8,9 @@ Run commands from the repository root. Simulation output is written under `data/
 
 ### Prerequisites
 
-- Python 3.10 or later (required by `jax==0.6.2`).
+- Python 3.10 (tested with **Python 3.10.12**). `./run_setup.sh` creates `.venv` with `python3.10` and stops if the interpreter is not 3.10.x; a different patch release only prints a warning.
 - Python dependencies (`toml`, `jax`, `h5py`, and the rest of `src/requirements.txt`) are installed into `.venv` at the repository root.
-- The simulation stage requires Julia.
+- The simulation stage requires Julia (tested with **Julia 1.12.6**). The pipeline selects this version automatically (see below).
 - Run setup once before the analysis pipeline.
 
 ```bash
@@ -26,18 +26,16 @@ Run commands from the repository root. Simulation output is written under `data/
 
 #### Julia and system toolchain
 
-The Julia environments (`src/flocking_models/Manifest.toml` and `src/QMLE/estimator_modules/Neighbor/jl_delaunay_restoration/project_config/Manifest.toml`) were resolved with Julia 1.12.3. For reproducibility, install this version with [Juliaup](https://github.com/JuliaLang/juliaup) if Julia is not already available:
+The Julia environments (`src/flocking_models/Manifest.toml` and `src/QMLE/estimator_modules/Neighbor/jl_delaunay_restoration/project_config/Manifest.toml`) were resolved with Julia 1.12.6. Install [Juliaup](https://github.com/JuliaLang/juliaup) if it is not already available:
 
 ```bash
 curl -fsSL https://install.julialang.org | sh
 ```
 
-After the installation completes, restart the terminal so that the updated `PATH` takes effect. Then install and select Julia 1.12.3:
+You do not need to change the juliaup default. `./run_setup.sh julia` installs Julia 1.12.6 through juliaup if it is missing, and every Julia call in the pipeline sets `JULIAUP_CHANNEL=1.12.6` so the juliaup launcher runs that version. The pipeline stops with an error if the Julia it finds reports a different version. To install it manually:
 
 ```bash
-juliaup add 1.12.3
-juliaup default 1.12.3
-julia --version
+juliaup add 1.12.6
 ```
 
 On Ubuntu and Debian systems, install the standard compilation toolchain before building the Julia environment:
@@ -52,11 +50,13 @@ The `build-essential` package provides the compiler, linker, and related system 
 
 The sysimage build runs `src/flocking_models/build_tools/precompile_script.jl`, which simulates a few seconds of every Kinetics × Social pair in the parameter presets in both `Float32` and `Float64`. During this step, simulation logs will appear in the terminal; these are expected precompile runs and do not generate the pipeline's simulation data. The package code those runs use is compiled into the image, so simulations skip most JIT compilation at startup. The build needs roughly 9 GB of memory. If it fails, add swap space and rerun `./run_setup.sh julia`. Rebuild after changing `src/flocking_models/Manifest.toml` or adding a model to the presets.
 
-To use a specific interpreter:
+To use a specific Python 3.10 interpreter instead of `.venv`:
 
 ```bash
-PYTHON=python3.11 ./run_setup.sh
+PYTHON=/path/to/python3.10 ./run_setup.sh
 ```
+
+The Julia executable is looked up in `$JULIA`, then `PATH`, then `~/.juliaup/bin/julia`. The tested versions are defined in `src/paths.py` (`PYTHON_VERSION`, `JULIA_VERSION`) and `run_setup.sh`.
 
 Later stages use `.venv/bin/python` when `PYTHON` is unset. `run_overall_procedure.sh` also accepts `VENV_DIR` if the virtual environment lives somewhere else.
 

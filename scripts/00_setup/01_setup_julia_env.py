@@ -4,7 +4,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
-from src.paths import PROJECT_ROOT, JULIA_PROJECT_DIR, JULIA_SYSIMAGE_PATH
+from src.paths import PROJECT_ROOT, JULIA_PROJECT_DIR, JULIA_SYSIMAGE_PATH, julia_executable
 
 ########################################
 # 3. Building DelaunayTriangulation is memory-heavy and often stalls.
@@ -28,8 +28,14 @@ def build_sysimage():
         print(f"Error: Build script not found at {build_script_path}")
         sys.exit(1)
 
+    try:
+        julia = julia_executable()
+    except (FileNotFoundError, RuntimeError) as exc:
+        print(f"Error: {exc}")
+        sys.exit(1)
+
     cmd = [
-        "julia",
+        julia,
         f"--project={JULIA_PROJECT_DIR}",
         str(build_script_path)
     ]
