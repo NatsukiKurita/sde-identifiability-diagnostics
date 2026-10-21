@@ -39,7 +39,7 @@ from _common import (
 # Adjust this figure size independently.
 FIGSIZE = (6.4, 4.0)
 # Early transients reach about -47 and would hide the late-time behaviour.
-UNIDENTIFIABLE_YLIM = (-3.0, 7.0)
+UNIDENTIFIABLE_YLIM = (-3.0, 3.0)
 
 
 def _min_eigenvalue_plot_series(
